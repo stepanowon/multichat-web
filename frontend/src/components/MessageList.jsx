@@ -51,39 +51,30 @@ export default function MessageList({ messages, myIdentifier, onDelete }) {
 
   return (
     <div className="message-list">
-      {messages.map((m) =>
-        m.type === "system" ? (
-          <div key={m.id || m.ts} className="system-message">
-            {m.nickname}님이 {m.event === "join" ? "입장" : "퇴장"}했습니다 · {formatTime(m.ts)}
-          </div>
-        ) : (
-          <div
-            key={m.id}
-            className={`bubble-row ${m.fromIdentifier === myIdentifier ? "mine" : ""}`}
-          >
-            <div className="bubble" onContextMenu={(e) => handleContextMenu(e, m)}>
-              <div className="bubble-meta">
-                {m.from} · {formatTime(m.ts)}
-                {m.to !== "all" && m.fromIdentifier !== myIdentifier ? " (나에게)" : ""}
-              </div>
-              {m.msgType === "image" && (
-                <img
-                  className="bubble-image"
-                  src={`/attachments/${m.attachmentPath}`}
-                  alt="첨부 이미지"
-                  onClick={() => setLightboxSrc(`/attachments/${m.attachmentPath}`)}
-                />
-              )}
-              {m.msgType === "file" && (
-                <a href={`/attachments/${m.attachmentPath}`} target="_blank" rel="noreferrer">
-                  📎 {m.fileName}
-                </a>
-              )}
-              {m.msgType === "text" && <div className="bubble-text">{m.text}</div>}
+      {messages.map((m) => (
+        <div key={m.id} className={`bubble-row ${m.fromIdentifier === myIdentifier ? "mine" : ""}`}>
+          <div className="bubble" onContextMenu={(e) => handleContextMenu(e, m)}>
+            <div className="bubble-meta">
+              {m.from} · {formatTime(m.ts)}
+              {m.to !== "all" && m.fromIdentifier !== myIdentifier ? " (나에게)" : ""}
             </div>
+            {m.msgType === "image" && (
+              <img
+                className="bubble-image"
+                src={`/attachments/${m.attachmentPath}`}
+                alt="첨부 이미지"
+                onClick={() => setLightboxSrc(`/attachments/${m.attachmentPath}`)}
+              />
+            )}
+            {m.msgType === "file" && (
+              <a href={`/attachments/${m.attachmentPath}`} target="_blank" rel="noreferrer">
+                📎 {m.fileName}
+              </a>
+            )}
+            {m.msgType === "text" && <div className="bubble-text">{m.text}</div>}
           </div>
-        )
-      )}
+        </div>
+      ))}
       <div ref={bottomRef} />
       {menu && <ContextMenu {...menu} onClose={() => setMenu(null)} />}
       {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}

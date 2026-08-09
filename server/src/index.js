@@ -1,5 +1,7 @@
 import express from "express";
 import http from "node:http";
+import https from "node:https";
+import fs from "node:fs";
 import path from "node:path";
 import { PORT } from "./env.js";
 import authRoutes from "./routes/auth.js";
@@ -26,9 +28,17 @@ app.get(/^(?!\/api|\/attachments|\/ws).*/, (req, res) => {
   res.sendFile(path.join(import.meta.dirname, "../static/index.html"));
 });
 
-const server = http.createServer(app);
+// certs/ 에 key.pem, cert.pem 있으면 HTTPS로, 없으면 기존 HTTP로 기동.
+const keyPath = path.join(import.meta.dirname, "../../certs/key.pem");
+const certPath = path.join(import.meta.dirname, "../../certs/cert.pem");
+const hasCert = fs.existsSync(keyPath) && fs.existsSync(certPath);
+
+const server = hasCert
+  ? https.createServer({ key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }, app)
+  : http.createServer(app);
 attachWebSocketServer(server);
 
+const protocol = hasCert ? "https" : "http";
 server.listen(PORT, () => {
-  console.log(`MultiChat server listening on http://localhost:${PORT}`);
+  console.log(`MultiChat server listening on ${protocol}://localhost:${PORT}`);
 });

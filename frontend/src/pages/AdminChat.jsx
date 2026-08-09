@@ -19,19 +19,28 @@ export default function AdminChat({ user, onLogout }) {
   const [shareRoot, setShareRoot] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [serverInfo, setServerInfo] = useState(null);
+  const [toasts, setToasts] = useState([]); // 입퇴장 알림: 대화창에 누적하지 않고 잠깐 떴다 사라짐
   const wsRef = useRef(null);
+
+  function pushToast(msg) {
+    const id = crypto.randomUUID();
+    const text = `${msg.nickname}님이 ${msg.event === "join" ? "입장" : "퇴장"}했습니다`;
+    setToasts((prev) => [...prev, { id, text }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000);
+  }
 
   useEffect(() => {
     api.getDates().then((d) => setDates(d.dates.includes(today()) ? d.dates : [...d.dates, today()]));
     api.getShareFiles().then((d) => setShareRoot(d.root));
-    api.getServerInfo().then(setServerInfo).catch(() => setServerInfo({ port: "", addresses: [] }));
+    api.getServerInfo().then(setServerInfo).catch(() => setServerInfo({ port: "", addresses: [], protocol: "http" }));
 
     const ws = connectChatSocket((msg) => {
       if (msg.type === "user_list") setUsers(msg.users);
       else if (msg.type === "share_updated") api.getShareFiles().then((d) => setShareRoot(d.root));
       else if (msg.type === "error") alert(msg.message);
       else if (msg.type === "deleted") setMessages((prev) => prev.filter((m) => m.id !== msg.id));
-      else if (msg.type === "message" || msg.type === "system") {
+      else if (msg.type === "system") pushToast(msg);
+      else if (msg.type === "message") {
         setMessages((prev) => (msg.ts.slice(0, 10) === selectedDateRef.current ? [...prev, msg] : prev));
       }
     });
@@ -44,7 +53,8 @@ export default function AdminChat({ user, onLogout }) {
   useEffect(() => { selectedDateRef.current = selectedDate; }, [selectedDate]);
 
   useEffect(() => {
-    api.getMessages(selectedDate).then((d) => setMessages(d.messages));
+    // system(입퇴장) 로그는 MD 내보내기용으로만 서버에 남기고, 화면 목록에는 누적하지 않는다.
+    api.getMessages(selectedDate).then((d) => setMessages(d.messages.filter((m) => m.type !== "system")));
   }, [selectedDate]);
 
   const { dragOver, sizeError, checkSize, dropHandlers } = useFileDrop({
@@ -70,11 +80,11 @@ export default function AdminChat({ user, onLogout }) {
             <ul className="server-addr-list">
               {serverInfo.addresses.map((ip) => (
                 <li key={ip}>
-                  <code>http://{ip}:{serverInfo.port}</code>
+                  <code>{serverInfo.protocol}://{ip}:{serverInfo.port}</code>
                   <button
                     className="copy-btn"
                     title="복사"
-                    onClick={() => copyText(`http://${ip}:${serverInfo.port}`)}
+                    onClick={() => copyText(`${serverInfo.protocol}://${ip}:${serverInfo.port}`)}
                   >⧉</button>
                 </li>
               ))}
@@ -117,6 +127,11 @@ export default function AdminChat({ user, onLogout }) {
       {showShareModal && (
         <ShareDirModal currentRoot={shareRoot} onClose={() => setShowShareModal(false)} onUpdated={setShareRoot} />
       )}
+      <div className="toast-container">
+        {toasts.map((t) => (
+          <div key={t.id} className="toast">{t.text}</div>
+        ))}
+      </div>
     </div>
   );
 }

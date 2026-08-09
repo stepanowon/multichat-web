@@ -97,7 +97,32 @@ h1 {
 }
 .drop-error { margin: 0 20px 8px; }
 .message-list { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-.system-message { text-align: center; color: var(--muted); font-size: 12px; margin: 4px 0; }
+.toast-container {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.toast {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  animation: toast-fade 3s ease forwards;
+}
+@keyframes toast-fade {
+  0% { opacity: 0; transform: translateY(-6px); }
+  10% { opacity: 1; transform: translateY(0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .bubble-row { display: flex; }
 .bubble-row.mine { justify-content: flex-end; }
 .bubble {
