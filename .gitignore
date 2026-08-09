@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output (React/Vite)
+dist/
+build/
+server/static/
+
+# Runtime data (auth.json, 대화 로그, 이미지) — docs/2-stack.md 5장 레이아웃
+data/
+
+# Env
+.env
+.env.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

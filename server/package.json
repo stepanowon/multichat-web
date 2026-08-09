@@ -1,0 +1,17 @@
+{
+  "name": "multichat-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prestart": "cd ../frontend && npm run build",
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "predev": "cd ../frontend && npm run build",
+    "dev": "node --watch --env-file-if-exists=.env src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "ws": "^8.18.0"
+  }
+}
