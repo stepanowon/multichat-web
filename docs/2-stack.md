@@ -37,6 +37,7 @@
 | 정적 파일 서빙 | Express `static` (React 빌드 결과물, `frontend`가 `server/static`으로 직접 빌드) | 별도 프론트 서버 불필요, 빌드 산출물만 서빙 |
 | JWT | `jsonwebtoken` (npm) | 서명/검증 표준 구현, 직접 구현할 이유 없음 |
 | 강사용 접속 주소 안내 | `GET /api/server-info`(관리자 전용) — Node 내장 `os.networkInterfaces()`로 LAN IPv4 조회, link-local(169.254.x.x) 제외 | 수강생에게 알려줄 접속 주소를 강사가 직접 `ipconfig` 안 쳐도 화면에서 바로 확인 |
+| 크래시 자동 재시작 | `server/scripts/keep-alive.js` — `npm start`가 이 래퍼를 실행, 자식 프로세스(`src/index.js`)가 죽으면 1초 후 재기동. `child_process.spawn` + `setTimeout` 몇 줄로 충분 | 30명 규모 단일 인스턴스에 forever/pm2 같은 프로세스 매니저는 과함. Ctrl+C(SIGINT/SIGTERM)는 래퍼가 자식에 전달 후 정상 종료, 재시작 안 함 |
 
 ## 4. 프론트엔드
 
@@ -44,7 +45,7 @@
 |---|---|---|
 | 구조 | React + Vite | 요건상 React 지정. 화면 수 적어 라우팅 없이 로그인 상태로 컴포넌트만 분기 |
 | 상태 관리 | React 기본 state/context | 화면·데이터 규모상 Redux 등 불필요 |
-| 실시간 수신 | 브라우저 내장 `WebSocket` API | 라이브러리 불필요 |
+| 실시간 수신 | 브라우저 내장 `WebSocket` API, 얇은 재연결 래퍼(`connectChatSocket`) | 서버 재기동·네트워크 순단으로 연결이 끊기면(토큰 무효 4401 제외) 5초 후 자동 재연결. 별도 라이브러리(reconnecting-websocket 등) 없이 `setTimeout` + 재오픈으로 충분 |
 | 클립보드 이미지 붙여넣기 | `window`에 `paste` 리스너(문서 전체) + `ClipboardEvent.clipboardData.items` | 좁은 입력창에만 걸면 캡처 후 포커스가 body에 가 있어 안 잡히는 경우가 많아 문서 전체로 확대 |
 | 파일 드래그앤드롭 | 채팅 영역(`main-pane`) 전체에 `onDrop`, `window`에는 `dragover`/`drop` 기본동작만 차단 | 입력창처럼 좁은 영역만 드롭 대상이면 대부분 빗나가 브라우저가 파일을 새 탭으로 열어버림 |
 | 여러 줄 입력 | `<textarea>` + Enter=전송/Shift+Enter=줄바꿈 | 네이티브 요소, 라이브러리 불필요 |
@@ -95,6 +96,7 @@ data/
 - Redux 등 별도 상태관리 라이브러리 — 화면·상태 규모상 React 기본 state로 충분.
 - 리프레시 토큰/토큰 재발급 플로우 — 강의 시간(1~2교시) 내 만료 안 되는 길이로 발급, 필요해지면 추가.
 - 패스워드 해싱/영속 저장(scrypt, `auth.json`), 앱 내 최초 설정 화면 — 환경변수 주입 + 매 요청 직접 비교로 대체되어 불필요.
+- forever/pm2 등 프로세스 매니저 — 크래시 시 재시작만 필요한 단일 인스턴스라 `spawn`+`setTimeout` 몇 줄(`keep-alive.js`)로 충분, 클러스터링/로그로테이션 같은 기능은 이 규모에 불필요.
 
 ## 9. 확장 여지 (필요해지면)
 

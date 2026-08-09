@@ -50,6 +50,8 @@ ADMIN_PASSWORD=admin123 STUDENT_PASSWORD=student123 npm start
 
 `npm start`(및 `npm run dev`)는 실행 전에 `frontend`를 자동으로 `npm run build`해 `server/static`에 반영한 뒤 서버를 띄운다(`prestart`/`predev` 훅). 브라우저에서 http://localhost:5000 접속.
 
+`npm start`는 서버 프로세스가 죽으면 자동으로 재시작한다(`server/scripts/keep-alive.js`). 클라이언트도 연결이 끊기면 5초 후 자동 재연결을 시도하므로, 서버가 잠깐 재시작되는 동안에도 새로고침 없이 복구된다.
+
 ## 데이터 저장 위치
 
 `server/data/` 아래에 날짜별 대화 로그(`.jsonl`)와 첨부 이미지/파일이 쌓인다(gitignore 대상, 재기동해도 유지). 강사가 지정하는 공유 디렉토리는 서버 파일시스템의 임의 경로를 가리키며 저장소에 포함되지 않는다.

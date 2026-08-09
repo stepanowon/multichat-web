@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "prestart": "cd ../frontend && npm run build",
-    "start": "node --env-file-if-exists=.env src/index.js",
+    "start": "node scripts/keep-alive.js",
     "predev": "cd ../frontend && npm run build",
     "dev": "node --watch --env-file-if-exists=.env src/index.js"
   },
