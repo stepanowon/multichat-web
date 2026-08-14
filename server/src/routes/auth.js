@@ -21,6 +21,9 @@ router.post("/login/student", (req, res) => {
   if (!nickname || !identifier || !password) {
     return res.status(400).json({ error: "MISSING_FIELDS" });
   }
+  if (nickname === "강사" || identifier === "강사") {
+    return res.status(400).json({ error: "RESERVED_NAME" });
+  }
   if (!passwordMatches(password, STUDENT_PASSWORD)) {
     return res.status(401).json({ error: "INVALID_PASSWORD" });
   }

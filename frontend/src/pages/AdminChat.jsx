@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
-import { connectChatSocket, sendText, sendImage, sendFile, deleteMessage } from "../ws.js";
+import { connectChatSocket, sendText, sendImage, sendFile, deleteMessage, kickUser } from "../ws.js";
 import DateDropdown from "../components/DateDropdown.jsx";
 import MessageList from "../components/MessageList.jsx";
 import ChatInput from "../components/ChatInput.jsx";
@@ -47,6 +47,11 @@ export default function AdminChat({ user, onLogout }) {
     wsRef.current = ws;
     return () => ws.close();
   }, []);
+
+  // 받는 사람으로 선택된 학생이 퇴장/강제종료로 목록에서 사라지면 드롭다운이 빈 값을 가리키게 되니 전체로 되돌린다.
+  useEffect(() => {
+    if (target !== "all" && !users.some((u) => u.identifier === target)) setTarget("all");
+  }, [users, target]);
 
   // ws 콜백 클로저가 최신 selectedDate를 참조하도록 ref로 보관.
   const selectedDateRef = useRef(selectedDate);
@@ -97,16 +102,28 @@ export default function AdminChat({ user, onLogout }) {
           <h3>접속자 ({users.length})</h3>
           <ul className="user-list">
             {users.map((u) => (
-              <li key={u.identifier}><span className="online-dot" />{u.nickname}</li>
+              <li key={u.identifier}>
+                <span className="online-dot" />
+                <span className="user-list-name">{u.nickname}</span>
+                <button
+                  className="kick-btn"
+                  title="연결 끊기"
+                  onClick={() => {
+                    if (confirm(`${u.nickname}님의 연결을 강제로 종료하시겠습니까?`)) {
+                      kickUser(wsRef.current, u.identifier);
+                    }
+                  }}
+                >✕</button>
+              </li>
             ))}
           </ul>
           <h3>받는 사람</h3>
-          <label><input type="radio" checked={target === "all"} onChange={() => setTarget("all")} /> 전체</label>
-          {users.map((u) => (
-            <label key={u.identifier} className="target-option">
-              <input type="radio" checked={target === u.identifier} onChange={() => setTarget(u.identifier)} /> {u.nickname}
-            </label>
-          ))}
+          <select className="target-dropdown" value={target} onChange={(e) => setTarget(e.target.value)}>
+            <option value="all">전체</option>
+            {users.map((u) => (
+              <option key={u.identifier} value={u.identifier}>{u.nickname}</option>
+            ))}
+          </select>
           <button className="button ghost small share-btn" onClick={() => setShowShareModal(true)}>공유 폴더 지정</button>
         </div>
         <div className={`main-pane ${dragOver ? "drag-over" : ""}`} {...dropHandlers}>

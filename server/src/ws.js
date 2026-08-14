@@ -4,6 +4,7 @@ import { verifyToken } from "./auth.js";
 import {
   addSession,
   removeSession,
+  getSession,
   isIdentifierTaken,
   broadcastToAdmins,
   broadcastToAll,
@@ -63,6 +64,7 @@ export function attachWebSocketServer(httpServer) {
       }
       if (data.type === "message") handleChatMessage(session, data);
       else if (data.type === "delete") handleDeleteMessage(session, data);
+      else if (data.type === "kick") handleKick(session, data);
     });
 
     ws.on("close", () => {
@@ -93,6 +95,15 @@ function handleDeleteMessage(session, data) {
   if (deleteMessage(date, id, session.identifier)) {
     broadcastToAll({ type: "deleted", id });
   }
+}
+
+// 강사가 특정 수강생 연결을 강제 종료. ws.close()가 곧 "close" 이벤트를 발생시켜
+// removeSession + 퇴장 브로드캐스트는 기존 흐름을 그대로 탄다.
+function handleKick(session, data) {
+  if (session.role !== "admin") return;
+  const target = getSession(data.identifier);
+  if (!target || target.role !== "student") return;
+  target.ws.close(4403, "kicked by admin");
 }
 
 function checkAttachmentSize(session, base64Data) {

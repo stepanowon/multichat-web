@@ -20,6 +20,13 @@ export function connectChatSocket(onMessage) {
         location.reload();
         return;
       }
+      // 강사가 강제 종료: 재연결하면 세션이 없으니 다시 로그인 화면으로.
+      if (ev.code === 4403) {
+        sessionStorage.clear();
+        alert("강사에 의해 연결이 종료되었습니다.");
+        location.reload();
+        return;
+      }
       if (manualClose) return;
       setTimeout(open, RECONNECT_DELAY_MS);
     };
@@ -40,12 +47,24 @@ export function connectChatSocket(onMessage) {
 
 // 접속 직후 몇백ms는 소켓이 아직 CONNECTING 상태라 ws.send()가 예외를 던진다 — 이벤트 핸들러
 // 안에서 조용히 죽어버려 "아무 반응 없음"으로만 보이던 버그. 여기서 막고 알려준다.
+// CONNECTING이 아니라 CLOSED/CLOSING이면(강사가 강제 종료했거나 세션이 끊긴 경우) "잠시 후
+// 재시도"가 아니라 로그인 화면으로 보낸다 — 끊긴 세션으로 재시도해봐야 다시 실패할 뿐이다.
 function send(ws, payload) {
-  if (!ws || ws.readyState !== WebSocket.OPEN) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    try {
+      ws.send(JSON.stringify(payload));
+      return;
+    } catch {
+      // fall through: 전송 실패로 처리
+    }
+  }
+  if (!ws || ws.readyState === WebSocket.CONNECTING) {
     alert("서버와 연결이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
     return;
   }
-  ws.send(JSON.stringify(payload));
+  sessionStorage.clear();
+  alert("연결이 끊어져 메시지를 보낼 수 없습니다. 다시 로그인해주세요.");
+  location.reload();
 }
 
 export function sendText(ws, text, to = "all") {
@@ -62,4 +81,8 @@ export function sendFile(ws, base64, fileName, to = "all") {
 
 export function deleteMessage(ws, id, date) {
   send(ws, { type: "delete", id, date });
+}
+
+export function kickUser(ws, identifier) {
+  send(ws, { type: "kick", identifier });
 }
