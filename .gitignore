@@ -28,3 +28,6 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+
+# Playwright MCP 실행 산출물 (스냅샷/콘솔 로그)
+.playwright-mcp/
