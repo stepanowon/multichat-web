@@ -4,6 +4,12 @@
 
 문서: [docs/1-prd.md](docs/1-prd.md) · [docs/2-stack.md](docs/2-stack.md) · [docs/3-wireframe.md](docs/3-wireframe.md) · [docs/4-api.md](docs/4-api.md) · [docs/5-user-scenario.md](docs/5-user-scenario.md)
 
+## 강사 전용 기능
+
+- **받는 사람 드롭다운**: 강사 화면의 메시지 수신 대상(전체/특정 수강생)은 드롭다운으로 선택.
+- **수강생 연결 강제 종료**: 접속자 목록의 `✕` 버튼 → 확인창 → 해당 수강생 WebSocket 강제 종료. 종료된 수강생은 세션이 완전히 삭제되어 로그인 화면으로 이동하며, 재접속하려면 다시 로그인해야 한다.
+- **예약 닉네임**: 수강생 닉네임/고유식별자로 "강사"는 사용할 수 없다(완전 일치만 차단, "보조강사" 등은 허용).
+
 ## 구조
 
 ```

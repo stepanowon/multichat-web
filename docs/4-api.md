@@ -14,6 +14,7 @@
   - REST: `Authorization: Bearer <JWT>` 헤더.
   - WebSocket: 연결 URL 쿼리 `?token=<JWT>` (연결 직후 서버가 검증, 실패 시 즉시 close).
   - 만료/서명 불일치 시 REST는 401 `{ "error":"INVALID_TOKEN" }`, WebSocket은 close(4401).
+  - 관리자가 강제 종료한 경우 WebSocket은 close(4403).
 - 에러 응답 공통 포맷: `{ "error": "CODE", "message": "..." }`
 
 ---
@@ -52,6 +53,7 @@
 { "token": "string", "role": "student", "nickname": "string", "identifier": "string" }
 ```
 
+응답 400 (닉네임/식별자가 "강사"와 완전 일치 — 예약된 이름): `{ "error": "RESERVED_NAME" }`
 응답 401: `{ "error": "INVALID_PASSWORD" }`
 응답 409 (식별자 충돌 — 이미 접속 중): `{ "error": "IDENTIFIER_TAKEN" }`
 
@@ -186,6 +188,7 @@ student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 �
 |---|---|---|
 | `message` | admin, student | `{ "type":"message", "msgType":"text\|image\|file", "to":"all\|admin\|<identifier>", "text":"...", "imageData":"base64(image only, 10MB 이내)", "fileData":"base64(file only, 10MB 이내)", "fileName":"..." }` — student는 `to`가 `"all"`(전체 사용자) 또는 `"admin"`(강사에게만)만 가능(그 외 값은 서버가 `"admin"`으로 강제), admin만 특정 identifier 지정 가능. 10MB 초과 시 서버가 `error`(`FILE_TOO_LARGE`)로 거부 |
 | `delete` | admin, student | `{ "type":"delete", "id":"uuid", "date":"YYYY-MM-DD" }` — 본인이 보낸 메시지만 삭제 가능(다른 사람 것 요청 시 서버가 조용히 무시) |
+| `kick` | admin | `{ "type":"kick", "identifier":"s01" }` — 지정 identifier의 학생 세션을 강제 종료(close 4403). admin이 아니거나 대상이 학생이 아니면 조용히 무시 |
 
 서버 처리(message): 수신 즉시 날짜별 `.jsonl`에 append 저장(이미지/파일은 `data/messages/images/<date>/`에 별도 저장 후 경로만 로그에 기록) → 대상자에게 `message` 브로드캐스트.
 
@@ -194,6 +197,7 @@ student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 �
 ### 2.4 종료
 
 - 클라이언트 연결 종료(탭 닫기 등) 감지 시 서버가 세션 Map에서 제거, admin 전원에 `system`(leave) + `user_list` 갱신 브로드캐스트. student에는 전송 안 함(PRD 6항).
+- admin이 `kick`으로 강제 종료한 경우도 동일한 close 처리 흐름(세션 제거 + `system`/`user_list` 브로드캐스트)을 타되, close 코드가 4403이라 학생 클라이언트는 재연결을 시도하지 않고 즉시 로그인 화면으로 이동(세션 정보 삭제).
 
 ---
 
