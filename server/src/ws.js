@@ -10,6 +10,7 @@ import {
   broadcastToAll,
   sendToIdentifier,
   userListPayload,
+  bumpSessionVersion,
 } from "./state.js";
 import { appendMessage, saveAttachment, deleteMessage } from "./messageStore.js";
 
@@ -53,6 +54,9 @@ export function attachWebSocketServer(httpServer) {
     if (user.role === "student") {
       broadcastSystem({ event: "join", nickname: user.nickname, identifier: user.identifier });
       broadcastToAdmins(userListPayload());
+    } else {
+      // 관리자가 접속한 시점에 이미 접속 중인 학생 목록을 바로 보내준다(학생 입퇴장 이벤트를 기다리지 않도록).
+      ws.send(JSON.stringify(userListPayload()));
     }
 
     ws.on("message", (raw) => {
@@ -103,6 +107,7 @@ function handleKick(session, data) {
   if (session.role !== "admin") return;
   const target = getSession(data.identifier);
   if (!target || target.role !== "student") return;
+  bumpSessionVersion(target.identifier); // 기존 JWT를 즉시 무효화(docs/4-api.md 0항)
   target.ws.close(4403, "kicked by admin");
 }
 

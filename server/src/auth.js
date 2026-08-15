@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "./env.js";
+import { getSessionVersion } from "./state.js";
 
 // 길이가 다르면 timingSafeEqual이 즉시 던지므로 먼저 길이를 맞춘다.
 export function passwordMatches(input, expected) {
@@ -15,7 +16,12 @@ export function issueToken(payload) {
 }
 
 export function verifyToken(token) {
-  return jwt.verify(token, JWT_SECRET); // 실패 시 throw
+  const payload = jwt.verify(token, JWT_SECRET); // 서명/만료 실패 시 throw
+  // 강제 종료로 세션 버전이 올라간 뒤라면 서명이 유효해도 토큰을 거부(docs/4-api.md 0항).
+  if (payload.sessionVersion !== getSessionVersion(payload.identifier)) {
+    throw new Error("SESSION_REVOKED");
+  }
+  return payload;
 }
 
 export function requireAuth(req, res, next) {

@@ -10,11 +10,12 @@
 
 - REST: 로그인/설정/파일목록/다운로드/대화내보내기처럼 요청-응답 1회성 작업.
 - WebSocket: 접속 후 실시간 메시지·유저목록·공유파일 갱신처럼 서버 push가 필요한 작업.
-- 인증: 로그인 성공 시 서버가 JWT 발급(서명 시크릿은 서버 메모리에만 존재 → 프로세스 재시작 시 기존 토큰 전부 무효). payload 예: `{ "role":"admin|student", "nickname":"...", "identifier":"...", "iat":..., "exp":... }`.
+- 인증: 로그인 성공 시 서버가 JWT 발급(서명 시크릿은 서버 메모리에만 존재 → 프로세스 재시작 시 기존 토큰 전부 무효). payload 예: `{ "role":"admin|student", "nickname":"...", "identifier":"...", "sessionVersion":1, "iat":..., "exp":... }`.
   - REST: `Authorization: Bearer <JWT>` 헤더.
   - WebSocket: 연결 URL 쿼리 `?token=<JWT>` (연결 직후 서버가 검증, 실패 시 즉시 close).
   - 만료/서명 불일치 시 REST는 401 `{ "error":"INVALID_TOKEN" }`, WebSocket은 close(4401).
-  - 관리자가 강제 종료한 경우 WebSocket은 close(4403).
+  - 서버는 식별자별 현재 `sessionVersion`을 메모리에 유지, 토큰의 `sessionVersion`이 이보다 낮으면 즉시 무효 처리(REST 401, WebSocket close 4401)한다.
+  - 관리자가 강제 종료한 경우 서버가 해당 식별자의 `sessionVersion`을 증가시켜 기존 토큰을 즉시 무효화하고, WebSocket은 close(4403)한다. 같은 토큰으로 재연결/REST 요청은 이후 401/4401로 거부됨.
 - 에러 응답 공통 포맷: `{ "error": "CODE", "message": "..." }`
 
 ---
@@ -53,7 +54,7 @@
 { "token": "string", "role": "student", "nickname": "string", "identifier": "string" }
 ```
 
-응답 400 (닉네임/식별자가 "강사"와 완전 일치 — 예약된 이름): `{ "error": "RESERVED_NAME" }`
+응답 400 (닉네임/식별자가 trim 후 "강사"와 완전 일치 — 예약된 이름): `{ "error": "RESERVED_NAME" }`
 응답 401: `{ "error": "INVALID_PASSWORD" }`
 응답 409 (식별자 충돌 — 이미 접속 중): `{ "error": "IDENTIFIER_TAKEN" }`
 
@@ -178,7 +179,7 @@ student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 �
 | `message` | 관련자(전체 or 강사 or 1:1 당사자) | `{ "type":"message", "id":"uuid", "msgType":"text\|image\|file", "from":"홍길동", "fromIdentifier":"s01", "role":"student", "to":"all\|admin\|<identifier>", "text":"...", "attachmentPath":"...", "fileName":"...", "ts":"ISO8601" }` |
 | `system` | **admin만** | `{ "type":"system", "event":"join\|leave", "nickname":"홍길동", "identifier":"s01", "ts":"..." }` (student에게는 절대 전송 안 함) |
 | `user_list` | **admin만** | `{ "type":"user_list", "users":[{"nickname":"홍길동","identifier":"s01"}, ...] }` |
-| `share_updated` | 전체 | `{ "type":"share_updated" }` — 수신 시 클라이언트가 1.4 재조회 |
+| `share_updated` | 전체 수강생 | `{ "type":"share_updated" }` — 수신 시 클라이언트가 1.4 재조회 |
 | `deleted` | 전체 | `{ "type":"deleted", "id":"uuid" }` — 화면에 해당 id 메시지가 있으면 제거(없으면 무시) |
 | `error` | 접속 본인 | `{ "type":"error", "code":"...", "message":"..." }` |
 
@@ -188,7 +189,7 @@ student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 �
 |---|---|---|
 | `message` | admin, student | `{ "type":"message", "msgType":"text\|image\|file", "to":"all\|admin\|<identifier>", "text":"...", "imageData":"base64(image only, 10MB 이내)", "fileData":"base64(file only, 10MB 이내)", "fileName":"..." }` — student는 `to`가 `"all"`(전체 사용자) 또는 `"admin"`(강사에게만)만 가능(그 외 값은 서버가 `"admin"`으로 강제), admin만 특정 identifier 지정 가능. 10MB 초과 시 서버가 `error`(`FILE_TOO_LARGE`)로 거부 |
 | `delete` | admin, student | `{ "type":"delete", "id":"uuid", "date":"YYYY-MM-DD" }` — 본인이 보낸 메시지만 삭제 가능(다른 사람 것 요청 시 서버가 조용히 무시) |
-| `kick` | admin | `{ "type":"kick", "identifier":"s01" }` — 지정 identifier의 학생 세션을 강제 종료(close 4403). admin이 아니거나 대상이 학생이 아니면 조용히 무시 |
+| `kick` | admin | `{ "type":"kick", "identifier":"s01" }` — 지정 identifier의 `sessionVersion`을 증가시켜 기존 토큰을 무효화하고 학생 세션을 강제 종료(close 4403). admin이 아니거나 대상이 학생이 아니면 조용히 무시 |
 
 서버 처리(message): 수신 즉시 날짜별 `.jsonl`에 append 저장(이미지/파일은 `data/messages/images/<date>/`에 별도 저장 후 경로만 로그에 기록) → 대상자에게 `message` 브로드캐스트.
 

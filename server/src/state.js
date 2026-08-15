@@ -1,6 +1,20 @@
 // 사용자 세션은 비영속(docs/1-prd.md 접속/인증) — 프로세스 메모리에만 보관.
 const sessions = new Map(); // identifier -> { identifier, nickname, role, ws }
 
+// 강제 종료 시 기존 JWT를 무효화하기 위한 식별자별 세션 버전(docs/4-api.md 0항).
+// ponytail: 프로세스 재시작 시 초기화되지만 JWT 시크릿도 메모리 한정이라 재시작하면 토큰 자체가 무효 — 영속화 불필요.
+const sessionVersions = new Map(); // identifier -> number
+
+export function getSessionVersion(identifier) {
+  return sessionVersions.get(identifier) || 0;
+}
+
+export function bumpSessionVersion(identifier) {
+  const next = getSessionVersion(identifier) + 1;
+  sessionVersions.set(identifier, next);
+  return next;
+}
+
 export function isIdentifierTaken(identifier) {
   return sessions.has(identifier);
 }
