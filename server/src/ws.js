@@ -14,8 +14,9 @@ import {
 } from "./state.js";
 import { appendMessage, saveAttachment, deleteMessage } from "./messageStore.js";
 
+// 날짜 구분 기준을 UTC가 아닌 KST(GMT+9)로 맞추기 위해 9시간을 더한 뒤 잘라낸다.
 function todayDate(ts) {
-  return ts.slice(0, 10);
+  return new Date(new Date(ts).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB, 클라이언트 제한과 동일(defense in depth)

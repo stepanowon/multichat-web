@@ -8,7 +8,8 @@ import ShareDirModal from "../components/ShareDirModal.jsx";
 import { useFileDrop } from "../useFileDrop.js";
 import { copyText } from "../clipboard.js";
 
-const today = () => new Date().toISOString().slice(0, 10);
+// 날짜 구분 기준을 UTC가 아닌 KST(GMT+9)로 맞추기 위해 9시간을 더한 뒤 잘라낸다.
+const today = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 export default function AdminChat({ user, onLogout }) {
   const [users, setUsers] = useState([]);
