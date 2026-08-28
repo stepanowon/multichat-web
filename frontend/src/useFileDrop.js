@@ -51,7 +51,11 @@ export function useFileDrop({ onImage, onFile, enabled = true }) {
     if (!enabled) return;
     function onPaste(e) {
       // 텍스트 입력 중 일반 문자 붙여넣기는 그대로 두고, 이미지/파일이 있을 때만 가로챈다.
-      const item = [...(e.clipboardData?.items || [])].find((i) => i.kind === "file");
+      // 파워포인트 등에서 텍스트를 복사하면 클립보드에 이미지 렌더링이 함께 담기는 경우가 많아,
+      // text/plain이 있으면 텍스트를 우선하고 이미지 가로채기는 건너뛴다.
+      const items = [...(e.clipboardData?.items || [])];
+      if (items.some((i) => i.kind === "string" && i.type === "text/plain")) return;
+      const item = items.find((i) => i.kind === "file");
       if (!item) return;
       e.preventDefault();
       deliver(item.getAsFile());
