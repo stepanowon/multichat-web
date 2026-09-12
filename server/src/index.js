@@ -39,6 +39,6 @@ const server = hasCert
 attachWebSocketServer(server);
 
 const protocol = hasCert ? "https" : "http";
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0",() => {
   console.log(`MultiChat server listening on ${protocol}://localhost:${PORT}`);
 });
