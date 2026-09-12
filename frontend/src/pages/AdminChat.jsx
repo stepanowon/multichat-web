@@ -132,6 +132,7 @@ export default function AdminChat({ user, onLogout }) {
             messages={messages}
             myIdentifier={user.identifier}
             onDelete={(id, date) => deleteMessage(wsRef.current, id, date)}
+            isAdmin
           />
           {sizeError && <p className="error-text drop-error">{sizeError}</p>}
           <ChatInput

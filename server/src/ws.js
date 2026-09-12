@@ -92,12 +92,13 @@ function broadcastSystem({ event, nickname, identifier }) {
   broadcastToAdmins(entry);
 }
 
-// 본인 메시지만 삭제 가능. 누가 어디까지 봤는지 서버가 다 알지 못하므로(1:1 포함)
-// 삭제 알림은 전원에게 브로드캐스트 — 화면에 그 메시지가 없는 클라이언트는 그냥 무시한다.
+// 본인 메시지만 삭제 가능(관리자는 전체 삭제 가능). 누가 어디까지 봤는지 서버가 다 알지
+// 못하므로(1:1 포함) 삭제 알림은 전원에게 브로드캐스트 — 화면에 그 메시지가 없는 클라이언트는
+// 그냥 무시한다.
 function handleDeleteMessage(session, data) {
   const { id, date } = data;
   if (!id || !date) return;
-  if (deleteMessage(date, id, session.identifier)) {
+  if (deleteMessage(date, id, session.identifier, session.role === "admin")) {
     broadcastToAll({ type: "deleted", id });
   }
 }

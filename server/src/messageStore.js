@@ -62,11 +62,13 @@ export function attachmentAbsolutePath(relativePath) {
   return path.join(messagesDir, relativePath);
 }
 
-// 본인 메시지만 삭제 가능 — 로그 파일에서도 제거(append-only라 통째로 다시 씀, 규모상 문제없음).
-export function deleteMessage(date, id, requesterIdentifier) {
+// 본인 메시지만 삭제 가능(관리자는 전체 삭제 가능) — 로그 파일에서도 제거
+// (append-only라 통째로 다시 씀, 규모상 문제없음).
+export function deleteMessage(date, id, requesterIdentifier, isAdmin = false) {
   const messages = readMessages(date);
   const idx = messages.findIndex((m) => m.id === id);
-  if (idx === -1 || messages[idx].fromIdentifier !== requesterIdentifier) return false;
+  if (idx === -1) return false;
+  if (!isAdmin && messages[idx].fromIdentifier !== requesterIdentifier) return false;
 
   const [deleted] = messages.splice(idx, 1);
   if (deleted.attachmentPath) {

@@ -18,7 +18,7 @@ function downloadUrl(url, fileName) {
   a.remove();
 }
 
-export default function MessageList({ messages, myIdentifier, onDelete }) {
+export default function MessageList({ messages, myIdentifier, onDelete, isAdmin = false }) {
   const [menu, setMenu] = useState(null); // { x, y, items }
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const bottomRef = useRef(null);
@@ -37,7 +37,7 @@ export default function MessageList({ messages, myIdentifier, onDelete }) {
     if (msg.msgType === "image") {
       items.push({ label: "이미지 다운로드", onClick: () => downloadUrl(`/attachments/${msg.attachmentPath}`) });
     }
-    if (isMine) {
+    if (isMine || isAdmin) {
       items.push({
         label: "삭제하기",
         danger: true,
