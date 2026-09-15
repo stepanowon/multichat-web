@@ -29,7 +29,7 @@ export default function StudentChat({ user, onLogout }) {
       if (msg.type === "share_updated") api.getShareFiles().then((d) => setTree(d.tree));
       else if (msg.type === "error") alert(msg.message);
       else if (msg.type === "deleted") setMessages((prev) => prev.filter((m) => m.id !== msg.id));
-      else if (msg.type === "message" && msg.ts.slice(0, 10) === selectedDateRef.current) {
+      else if (msg.type === "message" && msg.date === selectedDateRef.current) {
         setMessages((prev) => [...prev, msg]);
       }
     });

@@ -41,7 +41,7 @@ export default function MessageList({ messages, myIdentifier, onDelete, isAdmin 
       items.push({
         label: "삭제하기",
         danger: true,
-        onClick: () => onDelete(msg.id, msg.ts.slice(0, 10)),
+        onClick: () => onDelete(msg.id, msg.date ?? msg.ts.slice(0, 10)),
       });
     }
     if (items.length === 0) return;

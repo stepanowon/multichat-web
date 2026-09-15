@@ -133,6 +133,7 @@ function handleChatMessage(session, data) {
     role: session.role,
     to,
     ts,
+    date,
   };
 
   if (message.msgType === "image" && data.imageData) {

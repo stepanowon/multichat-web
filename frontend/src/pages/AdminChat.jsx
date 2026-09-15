@@ -42,7 +42,7 @@ export default function AdminChat({ user, onLogout }) {
       else if (msg.type === "deleted") setMessages((prev) => prev.filter((m) => m.id !== msg.id));
       else if (msg.type === "system") pushToast(msg);
       else if (msg.type === "message") {
-        setMessages((prev) => (msg.ts.slice(0, 10) === selectedDateRef.current ? [...prev, msg] : prev));
+        setMessages((prev) => (msg.date === selectedDateRef.current ? [...prev, msg] : prev));
       }
     });
     wsRef.current = ws;
