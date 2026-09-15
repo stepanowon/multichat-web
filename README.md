@@ -4,17 +4,37 @@
 
 문서: [docs/1-prd.md](docs/1-prd.md) · [docs/2-stack.md](docs/2-stack.md) · [docs/3-wireframe.md](docs/3-wireframe.md) · [docs/4-api.md](docs/4-api.md) · [docs/5-user-scenario.md](docs/5-user-scenario.md)
 
-## 강사 전용 기능
+## 주요 기능
 
-- **받는 사람 드롭다운**: 강사 화면의 메시지 수신 대상(전체/특정 수강생)은 드롭다운으로 선택.
-- **수강생 연결 강제 종료**: 접속자 목록의 `✕` 버튼 → 확인창 → 해당 수강생 WebSocket 강제 종료. 종료된 수강생은 세션이 완전히 삭제되어 로그인 화면으로 이동하며, 재접속하려면 다시 로그인해야 한다.
-- **예약 닉네임**: 수강생 닉네임/고유식별자로 "강사"는 사용할 수 없다(trim 후 완전 일치만 차단, "보조강사" 등은 허용).
+- **로그인**: 강사는 관리자 패스워드로, 수강생은 이름(닉네임)·고유식별자·공통 패스워드로 입장. 패스워드는 파일/DB에 저장하지 않고 서버 기동 시 환경변수로만 주입.
+- **실시간 메시지**: WebSocket 기반 채팅. 여러 줄 입력(Shift+Enter 줄바꿈, Enter 전송), 클립보드 이미지 붙여넣기, 파일 드래그앤드롭 전송(최대 10MB).
+- **메시지 삭제**: 수강생은 본인이 보낸 메시지만, 관리자는 모든 사용자의 메시지를 삭제 가능. 삭제 시 모든 접속자 화면과 서버 저장소(로그·첨부파일)에서 즉시 제거.
+- **컨텍스트 메뉴(우클릭)**: 텍스트 복사, 이미지 다운로드, 삭제.
+- **날짜별 대화 보기**: 상단 드롭다운으로 날짜 선택, 날짜 단위로 구분 저장/조회. 선택한 날짜의 대화를 Markdown 파일로 내보내기 가능.
+- **파일 공유(강사 → 수강생)**: 관리자가 지정한 서버 디렉토리(하위 포함)의 파일 목록을 수강생이 보고 다운로드.
+- **강사 전용 기능**
+  - **받는 사람 드롭다운**: 메시지 수신 대상을 전체 또는 특정 수강생으로 선택.
+  - **접속자 목록 & 강제 종료**: 현재 접속 중인 수강생 목록 조회, `✕` 버튼으로 특정 수강생의 연결을 강제 종료(확인창 후). 종료된 수강생은 세션이 완전히 삭제되어 로그인 화면으로 이동하며 재접속하려면 다시 로그인해야 한다.
+  - **예약 닉네임**: 수강생 닉네임/고유식별자로 "강사"는 사용할 수 없다(trim 후 완전 일치만 차단, "보조강사" 등은 허용).
+- **자동 복구**: 서버가 죽으면 자동 재시작(`keep-alive.js`), 클라이언트도 연결이 끊기면 5초 후 자동 재연결.
+- **HTTPS 지원**: 자체서명 인증서를 두면 자동으로 HTTPS로 기동(강의장마다 바뀌는 IP 대응).
 
 ## 구조
 
 ```
 server/    Node.js + Express + ws 백엔드 (REST API, WebSocket, 파일/메시지 영속화)
 frontend/  React + Vite 프론트엔드 (빌드 시 server/static 으로 배포)
+```
+
+## 설치
+
+Node.js가 설치되어 있어야 한다.
+
+```bash
+git clone <이 저장소>
+cd multichat-web
+cd frontend && npm install
+cd ../server && npm install
 ```
 
 ## 필요 환경변수
@@ -27,17 +47,17 @@ frontend/  React + Vite 프론트엔드 (빌드 시 server/static 으로 배포)
 
 패스워드는 파일/DB에 저장하지 않고 서버 기동 시 환경변수로만 주입한다.
 
-## 개발 모드
+## 사용 방법
+
+### 개발 모드 (프론트/백엔드 분리 실행)
 
 ```bash
 # 터미널 1 — 백엔드 (localhost:5000)
 cd server
-npm install
 ADMIN_PASSWORD=admin123 STUDENT_PASSWORD=student123 npm run dev
 
 # 터미널 2 — 프론트엔드 (localhost:5173, /api·/ws는 5000으로 프록시)
 cd frontend
-npm install
 npm run dev
 ```
 
@@ -45,12 +65,10 @@ npm run dev
 
 (터미널 1의 `npm run dev`도 `predev`로 프론트 빌드를 한 번 수행하지만, 이 개발 모드에선 터미널 2의 Vite dev server를 보는 것이므로 그 빌드 산출물은 안 쓰임 — 무시해도 됨.)
 
-## 배포(단일 서버로 실행)
+### 배포(단일 서버로 실행, 강의 당일 사용하는 방식)
 
 ```bash
-cd frontend && npm install   # 최초 1회
-cd ../server && npm install  # 최초 1회
-
+cd server
 ADMIN_PASSWORD=admin123 STUDENT_PASSWORD=student123 npm start
 ```
 
@@ -58,7 +76,7 @@ ADMIN_PASSWORD=admin123 STUDENT_PASSWORD=student123 npm start
 
 `npm start`는 서버 프로세스가 죽으면 자동으로 재시작한다(`server/scripts/keep-alive.js`). 클라이언트도 연결이 끊기면 5초 후 자동 재연결을 시도하므로, 서버가 잠깐 재시작되는 동안에도 새로고침 없이 복구된다.
 
-## HTTPS로 실행 (사설 인증서)
+### HTTPS로 실행 (사설 인증서)
 
 강의장 IP가 매번 바뀌므로, 인증서는 **강의 시작 그날의 IP로 새로 발급**해야 한다. `certs/key.pem`, `certs/cert.pem`이 있으면 서버가 자동으로 HTTPS로 기동한다(없으면 기존 HTTP).
 
