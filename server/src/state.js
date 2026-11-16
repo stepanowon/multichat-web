@@ -1,5 +1,9 @@
 // 사용자 세션은 비영속(docs/1-prd.md 접속/인증) — 프로세스 메모리에만 보관.
-const sessions = new Map(); // identifier -> { identifier, nickname, role, ws }
+// 식별자가 아니라 "WS 연결" 단위로 보관한다. 식별자당 하나만 담으면 같은 토큰으로 연결이 둘 생기는
+// 경우(강사 탭 복제, 새로고침·재연결 때 옛 소켓 close가 늦게 도착)에 한쪽이 다른 쪽 세션을
+// 덮어쓰거나 지워서, 연결은 살아 있는데 브로드캐스트를 못 받는 화면이 생긴다.
+// 수강생은 접속 시 식별자 중복을 막으므로(4409) 실제로 여러 연결을 갖는 건 강사뿐이다.
+const sessions = new Set(); // { identifier, nickname, role, ws }
 
 // 강제 종료 시 기존 JWT를 무효화하기 위한 식별자별 세션 버전(docs/4-api.md 0항).
 // ponytail: 프로세스 재시작 시 초기화되지만 JWT 시크릿도 메모리 한정이라 재시작하면 토큰 자체가 무효 — 영속화 불필요.
@@ -15,28 +19,29 @@ export function bumpSessionVersion(identifier) {
   return next;
 }
 
-export function isIdentifierTaken(identifier) {
-  return sessions.has(identifier);
-}
-
 export function addSession(session) {
-  sessions.set(session.identifier, session);
+  sessions.add(session);
 }
 
-export function removeSession(identifier) {
-  sessions.delete(identifier);
+export function removeSession(session) {
+  sessions.delete(session);
 }
 
-export function getSession(identifier) {
-  return sessions.get(identifier);
+// 해당 식별자의 모든 연결.
+export function getSessions(identifier) {
+  return [...sessions].filter((s) => s.identifier === identifier);
+}
+
+export function isIdentifierTaken(identifier) {
+  return getSessions(identifier).length > 0;
 }
 
 export function listStudents() {
-  return [...sessions.values()].filter((s) => s.role === "student");
+  return [...sessions].filter((s) => s.role === "student");
 }
 
 function admins() {
-  return [...sessions.values()].filter((s) => s.role === "admin");
+  return [...sessions].filter((s) => s.role === "admin");
 }
 
 function send(session, payload) {
@@ -46,8 +51,7 @@ function send(session, payload) {
 }
 
 export function sendToIdentifier(identifier, payload) {
-  const session = sessions.get(identifier);
-  if (session) send(session, payload);
+  for (const session of getSessions(identifier)) send(session, payload);
 }
 
 export function broadcastToAdmins(payload) {
@@ -55,7 +59,7 @@ export function broadcastToAdmins(payload) {
 }
 
 export function broadcastToAll(payload) {
-  for (const session of sessions.values()) send(session, payload);
+  for (const session of sessions) send(session, payload);
 }
 
 export function userListPayload() {

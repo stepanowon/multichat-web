@@ -4,7 +4,7 @@ import { verifyToken } from "./auth.js";
 import {
   addSession,
   removeSession,
-  getSession,
+  getSessions,
   isIdentifierTaken,
   broadcastToAdmins,
   broadcastToAll,
@@ -90,8 +90,10 @@ export function attachWebSocketServer(httpServer) {
     });
 
     ws.on("close", () => {
-      removeSession(session.identifier);
-      if (session.role === "student") {
+      // 이 연결만 지운다(같은 식별자의 다른 연결은 유지). 같은 사람의 연결이 아직 남아 있으면
+      // 실제로 나간 게 아니므로 퇴장 알림은 보내지 않는다.
+      removeSession(session);
+      if (session.role === "student" && !isIdentifierTaken(session.identifier)) {
         broadcastSystem({ event: "leave", nickname: session.nickname, identifier: session.identifier });
         broadcastToAdmins(userListPayload());
       }
@@ -124,10 +126,10 @@ function handleDeleteMessage(session, data) {
 // removeSession + 퇴장 브로드캐스트는 기존 흐름을 그대로 탄다.
 function handleKick(session, data) {
   if (session.role !== "admin" || !isString(data.identifier)) return;
-  const target = getSession(data.identifier);
-  if (!target || target.role !== "student") return;
-  bumpSessionVersion(target.identifier); // 기존 JWT를 즉시 무효화(docs/4-api.md 0항)
-  target.ws.close(4403, "kicked by admin");
+  const targets = getSessions(data.identifier).filter((s) => s.role === "student");
+  if (targets.length === 0) return;
+  bumpSessionVersion(data.identifier); // 기존 JWT를 즉시 무효화(docs/4-api.md 0항)
+  for (const target of targets) target.ws.close(4403, "kicked by admin");
 }
 
 function checkAttachmentSize(session, base64Data) {
