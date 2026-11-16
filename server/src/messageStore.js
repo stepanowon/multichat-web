@@ -10,7 +10,13 @@ function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+// 클라이언트가 넘긴 date가 그대로 경로에 들어가므로 "YYYY-MM-DD"만 허용(경로 탈출 차단).
+export function isValidDate(date) {
+  return typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date);
+}
+
 function dateFile(date) {
+  if (!isValidDate(date)) throw new Error("INVALID_DATE");
   return path.join(messagesDir, `${date}.jsonl`);
 }
 

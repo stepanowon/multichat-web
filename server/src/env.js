@@ -16,4 +16,4 @@ export { ADMIN_PASSWORD, STUDENT_PASSWORD };
 // JWT 서명 시크릿: 기동 시 1회 생성, 메모리에만 보관(재기동 시 기존 토큰 전부 무효화).
 export const JWT_SECRET = crypto.randomBytes(32).toString("hex");
 
-export const PORT = process.env.PORT || 3000;
+export const PORT = process.env.PORT || 5000; // README·.env.example·Vite 프록시와 동일

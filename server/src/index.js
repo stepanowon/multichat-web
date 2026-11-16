@@ -11,16 +11,28 @@ import serverInfoRoutes from "./routes/serverInfo.js";
 import { attachWebSocketServer } from "./ws.js";
 
 const app = express();
-app.use(express.json({ limit: "15mb" })); // 클립보드 이미지/드래그앤드롭 파일 base64 전송 고려
+// 첨부파일은 WS로 오므로 REST 바디는 로그인/공유경로 같은 작은 JSON뿐 — 기본 한도(100kb)로 충분.
+app.use(express.json());
 
 app.use("/api", authRoutes);
 app.use("/api", shareRoutes);
 app.use("/api", messageRoutes);
 app.use("/api", serverInfoRoutes);
 
-// 메시지에 첨부된 이미지/파일 다운로드용 정적 서빙(ponytail: 인증 없는 공개 경로,
-// uuid 파일명이라 추측 곤란 — 접근 통제 필요해지면 인증 미들웨어 추가).
-app.use("/attachments", express.static(path.join(import.meta.dirname, "../data/messages")));
+// 메시지에 첨부된 이미지/파일 서빙. data/messages 전체가 아니라 images/ 하위만 노출 —
+// 상위에 있는 날짜별 대화 로그(.jsonl)가 인증 없이 내려가지 않도록.
+// ponytail: 인증 없는 공개 경로, 파일명에 랜덤 해시(32비트)만 붙음 — 접근 통제 필요해지면 인증 미들웨어 추가.
+// 수강생이 올린 .html/.svg가 같은 출처에서 렌더링되지 않도록 항상 다운로드로 내려보내고
+// MIME 스니핑도 막는다(<img> 표시는 Content-Disposition과 무관하게 그대로 동작).
+app.use(
+  "/attachments/images",
+  express.static(path.join(import.meta.dirname, "../data/messages/images"), {
+    setHeaders: (res, filePath) => {
+      res.attachment(path.basename(filePath));
+      res.setHeader("X-Content-Type-Options", "nosniff");
+    },
+  }),
+);
 
 // React 빌드 산출물 서빙 (frontend build → server/static)
 app.use(express.static(path.join(import.meta.dirname, "../static")));

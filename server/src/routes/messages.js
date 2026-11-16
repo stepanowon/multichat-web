@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../auth.js";
-import { listDates, readMessages, filterForStudent, toMarkdown } from "../messageStore.js";
+import { listDates, readMessages, filterForStudent, toMarkdown, isValidDate } from "../messageStore.js";
 
 const router = Router();
 
@@ -19,12 +19,14 @@ router.get("/messages/dates", requireAuth, (req, res) => {
 router.get("/messages", requireAuth, (req, res) => {
   const date = req.query.date;
   if (!date) return res.status(400).json({ error: "MISSING_DATE" });
+  if (!isValidDate(date)) return res.status(400).json({ error: "INVALID_DATE" });
   res.json({ date, messages: messagesForUser(date, req.user) });
 });
 
 router.get("/messages/export", requireAuth, (req, res) => {
   const date = req.query.date;
   if (!date) return res.status(400).json({ error: "MISSING_DATE" });
+  if (!isValidDate(date)) return res.status(400).json({ error: "INVALID_DATE" });
   const md = toMarkdown(date, messagesForUser(date, req.user));
   res.set("Content-Type", "text/markdown; charset=utf-8");
   res.set("Content-Disposition", `attachment; filename="${date}.md"`);

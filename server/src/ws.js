@@ -12,7 +12,7 @@ import {
   userListPayload,
   bumpSessionVersion,
 } from "./state.js";
-import { appendMessage, saveAttachment, deleteMessage } from "./messageStore.js";
+import { appendMessage, saveAttachment, deleteMessage, isValidDate } from "./messageStore.js";
 
 // 날짜 구분 기준을 UTC가 아닌 KST(GMT+9)로 맞추기 위해 9시간을 더한 뒤 잘라낸다.
 function todayDate(ts) {
@@ -28,10 +28,20 @@ function base64ByteLength(base64) {
   return (len * 3) / 4 - padding;
 }
 
+// 10MB 원본 → base64 약 13.4MB + JSON 껍데기. 이보다 큰 프레임은 ws가 받기 전에 끊는다
+// (기본값 100MB까지 메모리에 다 받은 뒤 크기 검사하는 것을 방지).
+const MAX_WS_PAYLOAD = 15 * 1024 * 1024;
+
+const isString = (v) => typeof v === "string";
+
 export function attachWebSocketServer(httpServer) {
-  const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  const wss = new WebSocketServer({ server: httpServer, path: "/ws", maxPayload: MAX_WS_PAYLOAD });
 
   wss.on("connection", (ws, req) => {
+    // 소켓 단위 에러(maxPayload 초과, 비정상 프레임 등)는 리스너가 없으면 uncaught로 프로세스가 죽는다.
+    // ws가 알아서 연결을 닫으므로(→ "close" 핸들러로 정리) 여기선 기록만 한다.
+    ws.on("error", (err) => console.error("[ws] socket error:", err.message));
+
     const token = new URL(req.url, "http://localhost").searchParams.get("token");
     let user;
     try {
@@ -67,9 +77,16 @@ export function attachWebSocketServer(httpServer) {
       } catch {
         return;
       }
-      if (data.type === "message") handleChatMessage(session, data);
-      else if (data.type === "delete") handleDeleteMessage(session, data);
-      else if (data.type === "kick") handleKick(session, data);
+      if (!data || typeof data !== "object") return;
+      // 핸들러 예외가 여기서 새면 프로세스 전체가 죽고(재기동 시 JWT 시크릿 교체로 전원 재로그인)
+      // 수강생 한 명이 강의 전체를 끊을 수 있다 — 한 메시지 실패로 국한시킨다.
+      try {
+        if (data.type === "message") handleChatMessage(session, data);
+        else if (data.type === "delete") handleDeleteMessage(session, data);
+        else if (data.type === "kick") handleKick(session, data);
+      } catch (err) {
+        console.error(`[ws] ${session.identifier} 메시지 처리 실패:`, err);
+      }
     });
 
     ws.on("close", () => {
@@ -97,7 +114,7 @@ function broadcastSystem({ event, nickname, identifier }) {
 // 그냥 무시한다.
 function handleDeleteMessage(session, data) {
   const { id, date } = data;
-  if (!id || !date) return;
+  if (!isString(id) || !isValidDate(date)) return;
   if (deleteMessage(date, id, session.identifier, session.role === "admin")) {
     broadcastToAll({ type: "deleted", id });
   }
@@ -106,7 +123,7 @@ function handleDeleteMessage(session, data) {
 // 강사가 특정 수강생 연결을 강제 종료. ws.close()가 곧 "close" 이벤트를 발생시켜
 // removeSession + 퇴장 브로드캐스트는 기존 흐름을 그대로 탄다.
 function handleKick(session, data) {
-  if (session.role !== "admin") return;
+  if (session.role !== "admin" || !isString(data.identifier)) return;
   const target = getSession(data.identifier);
   if (!target || target.role !== "student") return;
   bumpSessionVersion(target.identifier); // 기존 JWT를 즉시 무효화(docs/4-api.md 0항)
@@ -120,6 +137,12 @@ function checkAttachmentSize(session, base64Data) {
 }
 
 function handleChatMessage(session, data) {
+  // 클라이언트 입력은 신뢰하지 않는다: 문자열이 아닌 값이 저장·브로드캐스트되면 서버(path/base64
+  // 처리)가 죽거나, 받은 모든 클라이언트의 React 렌더링이 깨지고 로그에 남아 새로고침해도 재발한다.
+  for (const key of ["text", "imageData", "fileData", "fileName", "to"]) {
+    if (data[key] !== undefined && data[key] !== null && !isString(data[key])) return;
+  }
+
   const ts = new Date().toISOString();
   const date = todayDate(ts);
   // 학생은 "전체"(모두에게) 또는 "강사"(강사에게만) 중 선택, 특정 학생 지정은 불가.
