@@ -158,6 +158,27 @@
 
 student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 무관 1:1 제외) 적용 후 변환.
 
+### 1.10 설문
+
+설문은 날짜와 무관하게 `data/surveys.json` 한 파일에 누적 저장된다. 생성·응답·마감·삭제가 일어나면 서버가 전체 접속자에게 WS `survey_updated`를 보낸다(2.2).
+
+질문 정의: `{ "type":"choice", "text":"...", "options":["A","B"], "multiple":false }` 또는 `{ "type":"text", "text":"..." }`
+- 질문 1~50개, 질문 내용 최대 500자, 다지선다 선택지 2~20개(각 최대 200자), `multiple:true`면 복수 선택 허용.
+- 응답 `answers[i]`: 다지선다는 선택지 인덱스 배열(`[0]`, 복수면 `[0,2]`), 단답형은 문자열(최대 1000자). 모든 질문 필수.
+
+| 메서드 | 경로 | 권한 | 설명 |
+|---|---|---|---|
+| `GET` | `/api/surveys` | 전체 | 목록(최신순) `{ "surveys":[{ "id","title","createdAt","closed","questionCount","responseCount","answered" }] }` — `answered`는 student 본인 응답 여부 |
+| `POST` | `/api/surveys` | admin | `{ "title":"...", "questions":[...] }` → 201 `{ "survey":{...} }`, 검증 실패 400 `{ "error":"INVALID_SURVEY", "message":"..." }` |
+| `GET` | `/api/surveys/:id` | 전체 | `{ "survey":{ id,title,createdAt,closed,questions:[{id,type,text,options?,multiple?}] }, "results":{...}, "myAnswers":[...]\|null }` |
+| `POST` | `/api/surveys/:id/responses` | student | `{ "answers":[...] }` — 1인 1응답, 다시 보내면 덮어씀(마감 전까지 수정 가능). 마감 시 409 `SURVEY_CLOSED`, 검증 실패 400 `INVALID_ANSWERS` |
+| `PATCH` | `/api/surveys/:id` | admin | `{ "closed":true\|false }` 마감/재개 |
+| `DELETE` | `/api/surveys/:id` | admin | 설문과 응답 전체 삭제 |
+
+`results`: `{ "responseCount":2, "questions":[ { "counts":[1,0,1] }, { "answers":[{ "text":"..." }] } ] }`
+- student에게는 **익명 집계만** 내려간다(선택지별 인원 수, 단답 내용).
+- admin에게는 응답자 이름이 추가된다: 다지선다 `"voters":[["홍길동"],[],["김철수"]]`, 단답형 `{ "text":"...", "nickname":"홍길동" }`.
+
 ---
 
 ## 2. WebSocket
@@ -181,6 +202,7 @@ student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 �
 | `user_list` | **admin만** | `{ "type":"user_list", "users":[{"nickname":"홍길동","identifier":"s01"}, ...] }` |
 | `share_updated` | 전체 수강생 | `{ "type":"share_updated" }` — 수신 시 클라이언트가 1.4 재조회 |
 | `deleted` | 전체 | `{ "type":"deleted", "id":"uuid" }` — 화면에 해당 id 메시지가 있으면 제거(없으면 무시) |
+| `survey_updated` | 전체 | `{ "type":"survey_updated", "id":"uuid" }` — 설문 생성/응답/마감/삭제 시. 수신 시 클라이언트가 1.10 목록(과 열려 있는 설문 상세)을 재조회 |
 | `error` | 접속 본인 | `{ "type":"error", "code":"...", "message":"..." }` |
 
 ### 2.3 클라이언트 → 서버 메시지

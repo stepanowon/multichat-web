@@ -32,4 +32,10 @@ export const api = {
   getMessages: (date) => request("GET", `/api/messages?date=${encodeURIComponent(date)}`),
   exportUrl: (date) => `/api/messages/export?date=${encodeURIComponent(date)}&token=${sessionStorage.getItem("token")}`,
   getServerInfo: () => request("GET", "/api/server-info"),
+  listSurveys: () => request("GET", "/api/surveys"),
+  createSurvey: (survey) => request("POST", "/api/surveys", survey),
+  getSurvey: (id) => request("GET", `/api/surveys/${encodeURIComponent(id)}`),
+  submitSurvey: (id, answers) => request("POST", `/api/surveys/${encodeURIComponent(id)}/responses`, { answers }),
+  setSurveyClosed: (id, closed) => request("PATCH", `/api/surveys/${encodeURIComponent(id)}`, { closed }),
+  deleteSurvey: (id) => request("DELETE", `/api/surveys/${encodeURIComponent(id)}`),
 };

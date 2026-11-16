@@ -7,6 +7,8 @@ import ChatInput from "../components/ChatInput.jsx";
 import ShareDirModal from "../components/ShareDirModal.jsx";
 import { useFileDrop } from "../useFileDrop.js";
 import { copyText } from "../clipboard.js";
+import SurveyPanel from "../components/SurveyPanel.jsx";
+import { useSurveys } from "../useSurveys.js";
 
 // 날짜 구분 기준을 UTC가 아닌 KST(GMT+9)로 맞추기 위해 9시간을 더한 뒤 잘라낸다.
 const today = () => new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -22,6 +24,8 @@ export default function AdminChat({ user, onLogout }) {
   const [serverInfo, setServerInfo] = useState(null);
   const [toasts, setToasts] = useState([]); // 입퇴장 알림: 대화창에 누적하지 않고 잠깐 떴다 사라짐
   const wsRef = useRef(null);
+  const [showSurveys, setShowSurveys] = useState(false);
+  const { surveys, version: surveyVersion, refresh: refreshSurveys } = useSurveys();
 
   function pushToast(msg) {
     const id = crypto.randomUUID();
@@ -38,6 +42,7 @@ export default function AdminChat({ user, onLogout }) {
     const ws = connectChatSocket((msg) => {
       if (msg.type === "user_list") setUsers(msg.users);
       else if (msg.type === "share_updated") api.getShareFiles().then((d) => setShareRoot(d.root));
+      else if (msg.type === "survey_updated") refreshSurveys();
       else if (msg.type === "error") alert(msg.message);
       else if (msg.type === "deleted") setMessages((prev) => prev.filter((m) => m.id !== msg.id));
       else if (msg.type === "system") pushToast(msg);
@@ -73,11 +78,17 @@ export default function AdminChat({ user, onLogout }) {
       <div className="top-bar">
         <span>MultiChat · 강사 모드</span>
         <div className="top-bar-actions">
+          <button className="button ghost small" onClick={() => setShowSurveys(true)}>
+            설문{surveys.length > 0 && ` (${surveys.length})`}
+          </button>
           <DateDropdown dates={dates} value={selectedDate} onChange={setSelectedDate} />
           <a className="button ghost small" href={api.exportUrl(selectedDate)}>MD 다운로드</a>
           <button className="button ghost small" onClick={onLogout}>나가기</button>
         </div>
       </div>
+      {showSurveys && (
+        <SurveyPanel surveys={surveys} version={surveyVersion} isAdmin onClose={() => setShowSurveys(false)} />
+      )}
       <div className="chat-layout">
         <div className="sidebar">
           <h3>수강생 접속 주소</h3>

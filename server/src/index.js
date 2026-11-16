@@ -8,16 +8,19 @@ import authRoutes from "./routes/auth.js";
 import shareRoutes from "./routes/share.js";
 import messageRoutes from "./routes/messages.js";
 import serverInfoRoutes from "./routes/serverInfo.js";
+import surveyRoutes from "./routes/surveys.js";
 import { attachWebSocketServer } from "./ws.js";
 
 const app = express();
-// 첨부파일은 WS로 오므로 REST 바디는 로그인/공유경로 같은 작은 JSON뿐 — 기본 한도(100kb)로 충분.
-app.use(express.json());
+// 첨부파일은 WS로 오므로 REST 바디는 로그인/공유경로/설문 정의 같은 JSON뿐 —
+// 최대 크기 설문(질문 50 × 선택지 20 × 200자)을 담을 정도인 1MB로 제한.
+app.use(express.json({ limit: "1mb" }));
 
 app.use("/api", authRoutes);
 app.use("/api", shareRoutes);
 app.use("/api", messageRoutes);
 app.use("/api", serverInfoRoutes);
+app.use("/api", surveyRoutes);
 
 // 메시지에 첨부된 이미지/파일 서빙. data/messages 전체가 아니라 images/ 하위만 노출 —
 // 상위에 있는 날짜별 대화 로그(.jsonl)가 인증 없이 내려가지 않도록.
