@@ -154,6 +154,8 @@ function handleChatMessage(session, data) {
     ts,
     date,
   };
+  // 강사가 특정 수강생에게 보낸 1:1이면 받는 사람 닉네임도 남긴다(대화 내보내기에 "강사 → 홍길동"으로 표기).
+  if (to !== "all" && to !== "admin") message.toNickname = getSessions(to)[0]?.nickname;
 
   if (message.msgType === "image" && data.imageData) {
     if (!checkAttachmentSize(session, data.imageData)) return;

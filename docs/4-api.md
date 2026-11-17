@@ -198,7 +198,7 @@ student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 �
 | type | 대상 | 설명 |
 |---|---|---|
 | `welcome` | 접속 본인 | `{ "type":"welcome", "role":"student", "nickname":"홍길동" }` |
-| `message` | 관련자(전체 or 강사 or 1:1 당사자) | `{ "type":"message", "id":"uuid", "msgType":"text\|image\|file", "from":"홍길동", "fromIdentifier":"s01", "role":"student", "to":"all\|admin\|<identifier>", "text":"...", "attachmentPath":"...", "fileName":"...", "ts":"ISO8601" }` |
+| `message` | 관련자(전체 or 강사 or 1:1 당사자) | `{ "type":"message", "id":"uuid", "msgType":"text\|image\|file", "from":"홍길동", "fromIdentifier":"s01", "role":"student", "to":"all\|admin\|<identifier>", "toNickname":"영희(1:1일 때만)", "text":"...", "attachmentPath":"...", "fileName":"...", "ts":"ISO8601" }` |
 | `system` | **admin만** | `{ "type":"system", "event":"join\|leave", "nickname":"홍길동", "identifier":"s01", "ts":"..." }` (student에게는 절대 전송 안 함) |
 | `user_list` | **admin만** | `{ "type":"user_list", "users":[{"nickname":"홍길동","identifier":"s01"}, ...] }` |
 | `share_updated` | 전체 수강생 | `{ "type":"share_updated" }` — 수신 시 클라이언트가 1.4 재조회 |

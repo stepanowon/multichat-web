@@ -4,9 +4,12 @@ import { listDates, readMessages, filterForStudent, toMarkdown, isValidDate } fr
 
 const router = Router();
 
-function messagesForUser(date, user) {
-  const all = readMessages(date);
+function visibleTo(all, user) {
   return user.role === "student" ? filterForStudent(all, user.identifier) : all;
+}
+
+function messagesForUser(date, user) {
+  return visibleTo(readMessages(date), user);
 }
 
 // ?date= 쿼리 필수 + YYYY-MM-DD 형식 검증(경로에 그대로 들어가므로).
@@ -31,9 +34,11 @@ router.get("/messages", requireAuth, requireDate, (req, res) => {
 
 router.get("/messages/export", requireAuth, requireDate, (req, res) => {
   const { date } = req.query;
+  const all = readMessages(date);
   res.attachment(`${date}.md`);
   res.type("text/markdown; charset=utf-8");
-  res.send(toMarkdown(date, messagesForUser(date, req.user)));
+  // 내용은 권한 필터를 거친 것만 내보내고, 그날 전체 로그는 1:1 받는 사람 닉네임 해석에만 쓴다.
+  res.send(toMarkdown(date, visibleTo(all, req.user), all));
 });
 
 export default router;

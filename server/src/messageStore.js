@@ -90,13 +90,26 @@ export function filterForStudent(messages, identifier) {
   });
 }
 
-export function toMarkdown(date, messages) {
+// 식별자 → 닉네임. 발신 기록(fromIdentifier/from)과 입장·퇴장 기록(identifier/nickname)에서 모은다.
+function nicknamesByIdentifier(log) {
+  const map = new Map();
+  for (const m of log) {
+    if (m.type === "system") map.set(m.identifier, m.nickname);
+    else if (m.fromIdentifier) map.set(m.fromIdentifier, m.from);
+  }
+  return map;
+}
+
+// messages: 내보낼 메시지(권한 필터 적용 후). nameLog: 1:1 받는 사람 이름 해석용 로그(기본은 messages).
+// toNickname이 없는 예전 로그도 같은 날 기록에서 이름을 찾아 "강사 → 홍길동"으로 표기한다.
+export function toMarkdown(date, messages, nameLog = messages) {
+  const nicknames = nicknamesByIdentifier(nameLog);
   const lines = [`# ${date} 대화 기록`, ""];
   for (const m of messages) {
     if (m.type === "system") continue;
     // ts는 UTC 저장값 — 내보내기 파일엔 서버가 돌아가는 지역(=강의실) 로컬 시간으로 표기.
     const time = new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const targetLabel = m.to === "admin" ? "강사" : m.toNickname || m.to;
+    const targetLabel = m.to === "admin" ? "강사" : m.toNickname || nicknames.get(m.to) || m.to;
     const target = m.to && m.to !== "all" ? ` → ${targetLabel}` : "";
     lines.push(`### ${time} ${m.from}${target}`);
     if (m.msgType === "image") {
