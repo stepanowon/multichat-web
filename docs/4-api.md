@@ -174,6 +174,7 @@ student 요청 시 1.7과 동일한 필터(시스템 메시지 제외, 본인 �
 | `POST` | `/api/surveys/:id/responses` | student | `{ "answers":[...] }` — 1인 1응답, 다시 보내면 덮어씀(마감 전까지 수정 가능). 마감 시 409 `SURVEY_CLOSED`, 검증 실패 400 `INVALID_ANSWERS` |
 | `PATCH` | `/api/surveys/:id` | admin | `{ "closed":true\|false }` 마감/재개 |
 | `DELETE` | `/api/surveys/:id` | admin | 설문과 응답 전체 삭제 |
+| `GET` | `/api/surveys/:id/export` | 전체 | 결과 Markdown 다운로드(`<a href>`용이라 `?token=` 쿼리 인증 허용). `Content-Disposition: attachment; filename*=UTF-8''설문결과_<제목>.md`. 이름 포함 규칙은 `results`와 동일(admin만 응답자 표시) |
 
 `results`: `{ "responseCount":2, "questions":[ { "counts":[1,0,1] }, { "answers":[{ "text":"..." }] } ] }`
 - student에게는 **익명 집계만** 내려간다(선택지별 인원 수, 단답 내용).

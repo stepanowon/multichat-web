@@ -13,11 +13,7 @@ import {
   bumpSessionVersion,
 } from "./state.js";
 import { appendMessage, saveAttachment, deleteMessage, isValidDate } from "./messageStore.js";
-
-// 날짜 구분 기준을 UTC가 아닌 KST(GMT+9)로 맞추기 위해 9시간을 더한 뒤 잘라낸다.
-function todayDate(ts) {
-  return new Date(new Date(ts).getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
+import { kstDate } from "./time.js";
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB, 클라이언트 제한과 동일(defense in depth)
 
@@ -81,9 +77,7 @@ export function attachWebSocketServer(httpServer) {
       // 핸들러 예외가 여기서 새면 프로세스 전체가 죽고(재기동 시 JWT 시크릿 교체로 전원 재로그인)
       // 수강생 한 명이 강의 전체를 끊을 수 있다 — 한 메시지 실패로 국한시킨다.
       try {
-        if (data.type === "message") handleChatMessage(session, data);
-        else if (data.type === "delete") handleDeleteMessage(session, data);
-        else if (data.type === "kick") handleKick(session, data);
+        if (Object.hasOwn(handlers, data.type)) handlers[data.type](session, data);
       } catch (err) {
         console.error(`[ws] ${session.identifier} 메시지 처리 실패:`, err);
       }
@@ -107,7 +101,7 @@ export function attachWebSocketServer(httpServer) {
 function broadcastSystem({ event, nickname, identifier }) {
   const ts = new Date().toISOString();
   const entry = { type: "system", event, nickname, identifier, ts };
-  appendMessage(todayDate(ts), entry);
+  appendMessage(kstDate(ts), entry);
   broadcastToAdmins(entry);
 }
 
@@ -146,7 +140,7 @@ function handleChatMessage(session, data) {
   }
 
   const ts = new Date().toISOString();
-  const date = todayDate(ts);
+  const date = kstDate(ts);
   // 학생은 "전체"(모두에게) 또는 "강사"(강사에게만) 중 선택, 특정 학생 지정은 불가.
   const to = session.role === "student" ? (data.to === "all" ? "all" : "admin") : data.to || "all";
 
@@ -173,15 +167,20 @@ function handleChatMessage(session, data) {
   }
 
   appendMessage(date, message);
-
-  const payload = { type: "message", ...message };
-  if (to === "all") {
-    broadcastToAll(payload);
-  } else if (to === "admin") {
-    broadcastToAdmins(payload);
-    sendToIdentifier(session.identifier, payload); // 발신자(학생) 본인 화면에도 표시
-  } else {
-    sendToIdentifier(to, payload);
-    sendToIdentifier(session.identifier, payload); // 발신자(관리자) 본인 화면에도 표시
-  }
+  deliver(session, { type: "message", ...message });
 }
+
+// 수신 대상에 따라 전송. 1:1(강사에게/특정 학생에게)이면 발신자 본인 화면에도 보낸다.
+function deliver(sender, payload) {
+  if (payload.to === "all") return broadcastToAll(payload);
+  if (payload.to === "admin") broadcastToAdmins(payload);
+  else sendToIdentifier(payload.to, payload);
+  sendToIdentifier(sender.identifier, payload);
+}
+
+// 클라이언트 → 서버 메시지 타입별 핸들러(docs/4-api.md 2.3).
+const handlers = {
+  message: handleChatMessage,
+  delete: handleDeleteMessage,
+  kick: handleKick,
+};

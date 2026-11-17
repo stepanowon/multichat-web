@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { fileToBase64 } from "../useFileDrop.js";
 
-export default function ChatInput({ onSendText, onSendImage, onSendFile, checkSize }) {
+// 텍스트 입력 + 파일 첨부(＋) 버튼. 선택한 파일은 onPickFile로 넘겨 드롭·붙여넣기와 같은 경로
+// (useFileDrop의 deliver: 크기 확인 → base64 → 이미지/파일 구분)로 처리한다.
+export default function ChatInput({ onSendText, onPickFile }) {
   const [text, setText] = useState("");
   const fileInputRef = useRef(null);
 
@@ -11,13 +12,10 @@ export default function ChatInput({ onSendText, onSendImage, onSendFile, checkSi
     setText("");
   }
 
-  async function handleFilePick(e) {
+  function handleFilePick(e) {
     const file = e.target.files[0];
-    e.target.value = "";
-    if (!file || !checkSize(file)) return;
-    const base64 = await fileToBase64(file);
-    if (file.type.startsWith("image/")) onSendImage(base64);
-    else onSendFile(base64, file.name);
+    e.target.value = ""; // 같은 파일을 연달아 골라도 onChange가 다시 발생하도록
+    onPickFile(file);
   }
 
   return (

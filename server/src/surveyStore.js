@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { formatKst } from "./time.js";
+import { sanitizeFileName } from "./sanitize.js";
 
 // 설문은 날짜와 무관하게 강의 전체에서 누적되므로 단일 JSON 파일로 보관(규모상 통째 읽기/쓰기로 충분).
 // 구조: { surveys: [{ id, title, createdAt, closed, questions: [...], responses: { <identifier>: {...} } }] }
@@ -161,11 +163,10 @@ export function buildResults(survey, { includeNames }) {
     responseCount: responses.length,
     questions: survey.questions.map((q, i) => {
       if (q.type === "choice") {
+        const chosenBy = q.options.map((_, oi) => responses.filter((r) => r.answers[i].includes(oi)));
         return {
-          counts: q.options.map((_, oi) => responses.filter((r) => r.answers[i].includes(oi)).length),
-          ...(includeNames && {
-            voters: q.options.map((_, oi) => responses.filter((r) => r.answers[i].includes(oi)).map((r) => r.nickname)),
-          }),
+          counts: chosenBy.map((rs) => rs.length),
+          ...(includeNames && { voters: chosenBy.map((rs) => rs.map((r) => r.nickname)) }),
         };
       }
       return {
@@ -173,6 +174,56 @@ export function buildResults(survey, { includeNames }) {
       };
     }),
   };
+}
+
+// 사용자 입력이 Markdown 구조(표 셀 구분자, 줄바꿈, 제목/목록 기호)를 깨지 않도록 한 줄로 정리.
+function mdInline(text) {
+  return String(text).replace(/\r?\n/g, " ").replace(/\|/g, "\\|").replace(/^([#>*+-]|\d+\.)/, "\\$1");
+}
+
+// 결과를 Markdown으로. includeNames 규칙은 화면 결과(buildResults)와 동일 — 수강생은 익명 집계만.
+export function surveyToMarkdown(survey, { includeNames }) {
+  const results = buildResults(survey, { includeNames });
+  const lines = [
+    `# 설문 결과: ${mdInline(survey.title)}`,
+    "",
+    `- 상태: ${survey.closed ? "마감" : "진행 중"}`,
+    `- 등록: ${formatKst(survey.createdAt)} (KST)`,
+    `- 응답: ${results.responseCount}명`,
+    `- 내보낸 시각: ${formatKst(Date.now())} (KST)`,
+    "",
+  ];
+
+  survey.questions.forEach((q, i) => {
+    const result = results.questions[i];
+    const kind = q.type === "choice" ? (q.multiple ? "다지선다, 복수 선택" : "다지선다") : "단답형";
+    lines.push(`## Q${i + 1}. ${mdInline(q.text)} (${kind})`, "");
+
+    if (q.type === "choice") {
+      lines.push(includeNames ? "| 선택지 | 응답 수 | 비율 | 응답자 |" : "| 선택지 | 응답 수 | 비율 |");
+      lines.push(includeNames ? "|---|---:|---:|---|" : "|---|---:|---:|");
+      q.options.forEach((opt, oi) => {
+        const count = result.counts[oi];
+        const pct = results.responseCount ? Math.round((count / results.responseCount) * 100) : 0;
+        const row = [mdInline(opt), `${count}`, `${pct}%`];
+        if (includeNames) row.push(result.voters[oi].map(mdInline).join(", "));
+        lines.push(`| ${row.join(" | ")} |`);
+      });
+    } else if (result.answers.length === 0) {
+      lines.push("_응답 없음_");
+    } else {
+      for (const a of result.answers) {
+        lines.push(a.nickname ? `- **${mdInline(a.nickname)}**: ${mdInline(a.text)}` : `- ${mdInline(a.text)}`);
+      }
+    }
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+
+// 다운로드 파일명: 파일시스템에서 문제되는 문자만 걷어낸 설문 제목(최대 80자).
+export function surveyExportFileName(survey) {
+  return `설문결과_${sanitizeFileName(survey.title, "survey").slice(0, 80)}.md`;
 }
 
 // 응답 내역(responses)은 외부로 그대로 내보내지 않는다 — 질문 정의만.

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { sanitizeFileName } from "./sanitize.js";
 
 // docs/2-stack.md 5장 레이아웃: data/messages/<date>.jsonl, data/messages/images/<date>/<uuid>.ext
 const messagesDir = path.join(import.meta.dirname, "../data/messages");
@@ -44,11 +45,6 @@ export function readMessages(date) {
     .map((line) => JSON.parse(line));
 }
 
-// 파일시스템에서 문제되는 문자만 걷어낸다(경로 구분자, 제어문자 등).
-function sanitizeBaseName(name) {
-  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim() || "file";
-}
-
 // base64 데이터를 이미지/첨부파일로 저장, 로그에 남길 상대경로 반환.
 // 저장 파일명은 "원본이름.해시.확장자" 형태 — 다운로드해도 어떤 파일인지 알아볼 수 있으면서
 // 동시에 이름 충돌은 나지 않는다(uuid 통짜 이름 대신).
@@ -57,7 +53,7 @@ export function saveAttachment(date, base64Data, fileName) {
   ensureDir(dir);
   const original = path.basename(fileName || "file");
   const ext = path.extname(original);
-  const base = sanitizeBaseName(original.slice(0, original.length - ext.length));
+  const base = sanitizeFileName(original.slice(0, original.length - ext.length));
   const hash = crypto.randomBytes(4).toString("hex");
   const savedName = `${base}.${hash}${ext}`;
   fs.writeFileSync(path.join(dir, savedName), Buffer.from(base64Data, "base64"));

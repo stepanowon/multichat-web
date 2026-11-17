@@ -38,14 +38,15 @@ cd frontend && npx vite build
 - `messageStore.js`: 날짜별 `data/messages/<YYYY-MM-DD>.jsonl`, 첨부는 `data/messages/images/<date>/`.
 - `surveyStore.js` + `routes/surveys.js`: 설문은 `data/surveys.json` 단일 파일, 변경 시 WS `survey_updated` 브로드캐스트.
 - 프론트 `ws.js`: 5초 자동 재연결 래퍼. close 4401(토큰 무효)·4403(강퇴)이면 로그인 화면으로.
-- 페이지는 `AdminChat.jsx` / `StudentChat.jsx` 두 개, 공용 로직은 훅(`useFileDrop`, `useSurveys`)으로 분리.
+- 페이지는 `AdminChat.jsx` / `StudentChat.jsx` 두 개. 공통 채팅 로직(날짜·메시지·WS 연결/전송)은 `useChatRoom` 훅, 공통 UI는 `ChatTopBar`·`ChatPane` 컴포넌트에 있고 페이지는 화면별 사이드바와 이벤트(onEvent)만 담당한다. 파일 첨부(드롭·붙여넣기·＋버튼)는 모두 `useFileDrop`의 `deliver` 한 경로로 처리.
+- KST 날짜 계산은 서버 `server/src/time.js`, 프론트 `frontend/src/time.js` 한 곳씩에만 둔다. 파일명 정리는 `server/src/sanitize.js`.
 
 ## 지켜야 할 규칙
 
 - **클라이언트 입력은 신뢰하지 않는다.** WS 메시지는 핸들러 전체가 try/catch로 감싸져 있고 필드 타입을 검증한다 — 새 메시지 타입을 추가할 때도 같은 방식으로. 예외가 새면 프로세스가 죽고, 재기동 시 JWT 시크릿이 바뀌어 전원이 재로그인해야 한다.
 - 경로에 들어가는 `date`는 `isValidDate`(YYYY-MM-DD)로 검증.
 - `/attachments`는 `images/` 하위만 공개(대화 로그 .jsonl 노출 금지). 첨부 응답은 `Content-Disposition: attachment` + `nosniff`.
-- 날짜 구분은 KST(+9h) 기준. 서버·프론트 양쪽에 같은 계산이 있으므로 함께 바꿀 것.
+- 날짜 구분은 KST(+9h) 기준. 서버(`server/src/time.js`)·프론트(`frontend/src/time.js`)에 같은 기준이 있으므로 함께 바꿀 것.
 - 프론트에서 `crypto.randomUUID`, `navigator.clipboard` 등 보안 컨텍스트 전용 API에 의존하지 말 것 — 수강생은 `http://<LAN IP>`로 접속한다(`clipboard.js` 폴백 참고).
 - 파일에 영속화할 때는 임시파일 → rename으로 원자적으로 쓴다(`surveyStore.save` 참고).
 - API/WS 프로토콜을 바꾸면 `docs/4-api.md`, 사용자 기능을 바꾸면 `README.md`도 함께 갱신.

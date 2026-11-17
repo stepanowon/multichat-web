@@ -38,4 +38,5 @@ export const api = {
   submitSurvey: (id, answers) => request("POST", `/api/surveys/${encodeURIComponent(id)}/responses`, { answers }),
   setSurveyClosed: (id, closed) => request("PATCH", `/api/surveys/${encodeURIComponent(id)}`, { closed }),
   deleteSurvey: (id) => request("DELETE", `/api/surveys/${encodeURIComponent(id)}`),
+  surveyExportUrl: (id) => `/api/surveys/${encodeURIComponent(id)}/export?token=${sessionStorage.getItem("token")}`,
 };

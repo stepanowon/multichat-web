@@ -35,6 +35,7 @@ export function useFileDrop({ onImage, onFile, enabled = true }) {
     return true;
   }
 
+  // 드롭·붙여넣기·파일 선택(＋ 버튼) 공통 진입점: 크기 확인 → base64 → 이미지/파일 구분 전달.
   async function deliver(file) {
     if (!file || !checkSize(file)) return;
     try {
@@ -83,5 +84,5 @@ export function useFileDrop({ onImage, onFile, enabled = true }) {
     },
   };
 
-  return { dragOver, sizeError, checkSize, dropHandlers };
+  return { dragOver, sizeError, deliver, dropHandlers };
 }

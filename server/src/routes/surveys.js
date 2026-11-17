@@ -12,6 +12,8 @@ import {
   deleteSurvey,
   buildResults,
   publicSurvey,
+  surveyToMarkdown,
+  surveyExportFileName,
 } from "../surveyStore.js";
 
 const router = Router();
@@ -50,6 +52,16 @@ router.get("/surveys/:id", requireAuth, (req, res) => {
     results: buildResults(survey, { includeNames: isAdmin }),
     myAnswers: isAdmin ? null : survey.responses[req.user.identifier]?.answers ?? null,
   });
+});
+
+// 결과 Markdown 다운로드. <a href>로 열리므로 토큰은 쿼리(?token=)로 받는다(requireAuth가 지원).
+router.get("/surveys/:id/export", requireAuth, (req, res) => {
+  const survey = findOr404(req, res);
+  if (!survey) return;
+  const md = surveyToMarkdown(survey, { includeNames: req.user.role === "admin" });
+  res.attachment(surveyExportFileName(survey)); // 한글 파일명은 filename*=UTF-8''로 인코딩됨
+  res.type("text/markdown; charset=utf-8");
+  res.send(md);
 });
 
 router.post("/surveys/:id/responses", requireAuth, (req, res) => {

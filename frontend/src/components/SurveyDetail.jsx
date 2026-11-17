@@ -99,12 +99,19 @@ export default function SurveyDetail({ id, version, isAdmin, onBack }) {
       <h3 className="survey-title">{survey.title}</h3>
       <p className="hint-text">응답 {results.responseCount}명</p>
 
-      {isAdmin && (
-        <div className="survey-admin-actions">
-          <button className="button ghost-dark small" onClick={toggleClosed}>{survey.closed ? "다시 열기" : "마감하기"}</button>
-          <button className="button ghost-dark small danger" onClick={remove}>삭제</button>
-        </div>
-      )}
+      <div className="survey-admin-actions">
+        {isAdmin && (
+          <>
+            <button className="button ghost-dark small" onClick={toggleClosed}>{survey.closed ? "다시 열기" : "마감하기"}</button>
+            <button className="button ghost-dark small danger" onClick={remove}>삭제</button>
+          </>
+        )}
+        <a
+          className="button ghost-dark small"
+          href={api.surveyExportUrl(survey.id)}
+          title={isAdmin ? "응답자 이름 포함" : "익명 집계"}
+        >결과 MD 다운로드</a>
+      </div>
 
       {canAnswer && (
         <section className="survey-section">

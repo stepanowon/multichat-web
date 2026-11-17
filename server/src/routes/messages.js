@@ -9,6 +9,14 @@ function messagesForUser(date, user) {
   return user.role === "student" ? filterForStudent(all, user.identifier) : all;
 }
 
+// ?date= 쿼리 필수 + YYYY-MM-DD 형식 검증(경로에 그대로 들어가므로).
+function requireDate(req, res, next) {
+  const { date } = req.query;
+  if (!date) return res.status(400).json({ error: "MISSING_DATE" });
+  if (!isValidDate(date)) return res.status(400).json({ error: "INVALID_DATE" });
+  next();
+}
+
 router.get("/messages/dates", requireAuth, (req, res) => {
   const dates = listDates();
   if (req.user.role !== "student") return res.json({ dates });
@@ -16,21 +24,16 @@ router.get("/messages/dates", requireAuth, (req, res) => {
   res.json({ dates: withMine });
 });
 
-router.get("/messages", requireAuth, (req, res) => {
-  const date = req.query.date;
-  if (!date) return res.status(400).json({ error: "MISSING_DATE" });
-  if (!isValidDate(date)) return res.status(400).json({ error: "INVALID_DATE" });
+router.get("/messages", requireAuth, requireDate, (req, res) => {
+  const { date } = req.query;
   res.json({ date, messages: messagesForUser(date, req.user) });
 });
 
-router.get("/messages/export", requireAuth, (req, res) => {
-  const date = req.query.date;
-  if (!date) return res.status(400).json({ error: "MISSING_DATE" });
-  if (!isValidDate(date)) return res.status(400).json({ error: "INVALID_DATE" });
-  const md = toMarkdown(date, messagesForUser(date, req.user));
-  res.set("Content-Type", "text/markdown; charset=utf-8");
-  res.set("Content-Disposition", `attachment; filename="${date}.md"`);
-  res.send(md);
+router.get("/messages/export", requireAuth, requireDate, (req, res) => {
+  const { date } = req.query;
+  res.attachment(`${date}.md`);
+  res.type("text/markdown; charset=utf-8");
+  res.send(toMarkdown(date, messagesForUser(date, req.user)));
 });
 
 export default router;

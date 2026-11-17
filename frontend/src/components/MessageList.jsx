@@ -9,7 +9,10 @@ function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-function downloadUrl(url, fileName) {
+const attachmentUrl = (m) => `/attachments/${m.attachmentPath}`;
+
+// 링크 클릭 없이 파일 다운로드를 시작(컨텍스트 메뉴의 "이미지 다운로드").
+function triggerDownload(url, fileName) {
   const a = document.createElement("a");
   a.href = url;
   a.download = fileName || "";
@@ -35,7 +38,7 @@ export default function MessageList({ messages, myIdentifier, onDelete, isAdmin 
       items.push({ label: "복사하기", onClick: () => copyText(msg.text) });
     }
     if (msg.msgType === "image") {
-      items.push({ label: "이미지 다운로드", onClick: () => downloadUrl(`/attachments/${msg.attachmentPath}`) });
+      items.push({ label: "이미지 다운로드", onClick: () => triggerDownload(attachmentUrl(msg)) });
     }
     if (isMine || isAdmin) {
       items.push({
@@ -61,13 +64,13 @@ export default function MessageList({ messages, myIdentifier, onDelete, isAdmin 
             {m.msgType === "image" && (
               <img
                 className="bubble-image"
-                src={`/attachments/${m.attachmentPath}`}
+                src={attachmentUrl(m)}
                 alt="첨부 이미지"
-                onClick={() => setLightboxSrc(`/attachments/${m.attachmentPath}`)}
+                onClick={() => setLightboxSrc(attachmentUrl(m))}
               />
             )}
             {m.msgType === "file" && (
-              <a href={`/attachments/${m.attachmentPath}`} target="_blank" rel="noreferrer">
+              <a href={attachmentUrl(m)} target="_blank" rel="noreferrer">
                 📎 {m.fileName}
               </a>
             )}
