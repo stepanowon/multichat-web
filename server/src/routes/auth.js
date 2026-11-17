@@ -18,7 +18,9 @@ router.post("/login/admin", (req, res) => {
 
 router.post("/login/student", (req, res) => {
   const { nickname, identifier, password } = req.body || {};
-  if (!nickname || !identifier || !password) {
+  // 문자열이 아니거나 공백뿐인 값도 빈 칸으로 본다(공백 닉네임으로 입장하거나 .trim()에서 500이 나지 않도록).
+  const filled = (v) => typeof v === "string" && v.trim() !== "";
+  if (!filled(nickname) || !filled(identifier) || typeof password !== "string" || !password) {
     return res.status(400).json({ error: "MISSING_FIELDS" });
   }
   // 예약 이름 차단은 trim 후 완전 일치만 본다(docs/1-prd.md).

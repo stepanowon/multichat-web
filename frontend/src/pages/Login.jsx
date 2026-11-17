@@ -26,17 +26,21 @@ export default function Login({ onLogin }) {
     }
   }
 
+  // 서버 에러 코드(docs/4-api.md 1.2) → 사용자 안내 문구.
+  const STUDENT_ERRORS = {
+    MISSING_FIELDS: "닉네임, 고유식별자, 패스워드를 모두 입력해주세요.",
+    RESERVED_NAME: "'강사'는 닉네임이나 고유식별자로 사용할 수 없습니다.",
+    INVALID_PASSWORD: "패스워드가 일치하지 않습니다.",
+    IDENTIFIER_TAKEN: "이미 사용 중인 식별자입니다. 다시 입력해주세요.",
+  };
+
   async function submitStudent() {
     setStudentErr("");
     try {
       const data = await api.loginStudent(nickname, identifier, studentPw);
       onLogin(data);
     } catch (e) {
-      const networkErr = describeError(e);
-      if (networkErr) setStudentErr(networkErr);
-      else if (e.data?.error === "IDENTIFIER_TAKEN") setStudentErr("이미 사용 중인 식별자입니다. 다시 입력해주세요.");
-      else if (e.data?.error === "INVALID_PASSWORD") setStudentErr("패스워드가 일치하지 않습니다.");
-      else setStudentErr("로그인 실패");
+      setStudentErr(describeError(e) || STUDENT_ERRORS[e.data?.error] || "로그인 실패");
     }
   }
 

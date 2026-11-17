@@ -59,7 +59,7 @@
 { "token": "string", "role": "student", "nickname": "string", "identifier": "string" }
 ```
 
-응답 400 (빈 칸): `{ "error": "MISSING_FIELDS" }`
+응답 400 (빈 칸 — 닉네임/식별자가 공백뿐이거나 문자열이 아닌 경우 포함): `{ "error": "MISSING_FIELDS" }`
 응답 400 (닉네임/식별자가 trim 후 "강사"와 완전 일치 — 예약된 이름): `{ "error": "RESERVED_NAME" }`
 응답 401: `{ "error": "INVALID_PASSWORD" }`
 응답 409 (식별자 충돌 — 이미 접속 중): `{ "error": "IDENTIFIER_TAKEN" }`
