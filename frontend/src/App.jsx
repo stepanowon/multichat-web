@@ -1,36 +1,12 @@
-import { useState } from "react";
+import { useAuth } from "./authStore.js";
 import Login from "./pages/Login.jsx";
 import AdminChat from "./pages/AdminChat.jsx";
 import StudentChat from "./pages/StudentChat.jsx";
 
-function loadUser() {
-  const token = sessionStorage.getItem("token");
-  if (!token) return null;
-  return {
-    token,
-    role: sessionStorage.getItem("role"),
-    nickname: sessionStorage.getItem("nickname"),
-    identifier: sessionStorage.getItem("identifier"),
-  };
-}
-
+// 로그인/로그아웃은 authStore에서 일어나고, 여기서는 그 결과로 화면만 고른다.
 export default function App() {
-  const [user, setUser] = useState(loadUser());
-
-  function handleLogin(data) {
-    sessionStorage.setItem("token", data.token);
-    sessionStorage.setItem("role", data.role);
-    sessionStorage.setItem("nickname", data.nickname);
-    sessionStorage.setItem("identifier", data.identifier);
-    setUser(data);
-  }
-
-  function handleLogout() {
-    sessionStorage.clear();
-    setUser(null);
-  }
-
-  if (!user) return <Login onLogin={handleLogin} />;
-  if (user.role === "admin") return <AdminChat user={user} onLogout={handleLogout} />;
-  return <StudentChat user={user} onLogout={handleLogout} />;
+  const role = useAuth((s) => s.user?.role);
+  if (!role) return <Login />;
+  if (role === "admin") return <AdminChat />;
+  return <StudentChat />;
 }

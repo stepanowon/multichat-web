@@ -11,7 +11,7 @@ import SurveyPanel from "../components/SurveyPanel.jsx";
 // 토스트 key용 일련번호(crypto.randomUUID는 http LAN 접속 같은 비보안 컨텍스트에선 없음).
 let toastSeq = 0;
 
-export default function AdminChat({ user, onLogout }) {
+export default function AdminChat() {
   const [users, setUsers] = useState([]);
   const [target, setTarget] = useState("all");
   const [shareRoot, setShareRoot] = useState(null);
@@ -48,7 +48,7 @@ export default function AdminChat({ user, onLogout }) {
 
   return (
     <div className="chat-screen">
-      <ChatTopBar title="MultiChat · 강사 모드" chat={chat} onLogout={onLogout}>
+      <ChatTopBar title="MultiChat · 강사 모드" chat={chat}>
         <button className="button ghost small" onClick={() => setShowSurveys(true)}>
           설문{surveys.length > 0 && ` (${surveys.length})`}
         </button>
@@ -77,10 +77,10 @@ export default function AdminChat({ user, onLogout }) {
           </select>
           <button className="button ghost small share-btn" onClick={() => setShowShareModal(true)}>공유 폴더 지정</button>
         </div>
-        <ChatPane chat={chat} myIdentifier={user.identifier} target={target} isAdmin />
+        <ChatPane chat={chat} target={target} />
       </div>
       {showSurveys && (
-        <SurveyPanel surveys={surveys} version={surveyVersion} isAdmin onClose={() => setShowSurveys(false)} />
+        <SurveyPanel surveys={surveys} version={surveyVersion} onClose={() => setShowSurveys(false)} />
       )}
       {showShareModal && (
         <ShareDirModal currentRoot={shareRoot} onClose={() => setShowShareModal(false)} onUpdated={setShareRoot} />

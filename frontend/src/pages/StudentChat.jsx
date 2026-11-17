@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { useAuth } from "../authStore.js";
 import { useChatRoom } from "../useChatRoom.js";
 import { useSurveys } from "../useSurveys.js";
 import ChatTopBar from "../components/ChatTopBar.jsx";
@@ -7,7 +8,8 @@ import ChatPane from "../components/ChatPane.jsx";
 import FileTree from "../components/FileTree.jsx";
 import SurveyPanel from "../components/SurveyPanel.jsx";
 
-export default function StudentChat({ user, onLogout }) {
+export default function StudentChat() {
+  const nickname = useAuth((s) => s.user?.nickname);
   const [tree, setTree] = useState([]);
   const [target, setTarget] = useState("all"); // "all" | "admin"
   const [showSurveys, setShowSurveys] = useState(false);
@@ -26,7 +28,7 @@ export default function StudentChat({ user, onLogout }) {
 
   return (
     <div className="chat-screen">
-      <ChatTopBar title={`MultiChat · ${user.nickname}`} chat={chat} onLogout={onLogout}>
+      <ChatTopBar title={`MultiChat · ${nickname}`} chat={chat}>
         <button className="button ghost small" onClick={() => setShowSurveys(true)}>
           설문{pendingSurveys > 0 && <span className="badge-count">{pendingSurveys}</span>}
         </button>
@@ -39,10 +41,10 @@ export default function StudentChat({ user, onLogout }) {
           <label><input type="radio" checked={target === "admin"} onChange={() => setTarget("admin")} /> 강사</label>
           <label className="target-option"><input type="radio" checked={target === "all"} onChange={() => setTarget("all")} /> 전체 사용자</label>
         </div>
-        <ChatPane chat={chat} myIdentifier={user.identifier} target={target} />
+        <ChatPane chat={chat} target={target} />
       </div>
       {showSurveys && (
-        <SurveyPanel surveys={surveys} version={surveyVersion} isAdmin={false} onClose={() => setShowSurveys(false)} />
+        <SurveyPanel surveys={surveys} version={surveyVersion} onClose={() => setShowSurveys(false)} />
       )}
     </div>
   );

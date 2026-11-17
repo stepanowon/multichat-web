@@ -1,3 +1,5 @@
+import { getToken, logout } from "./authStore.js";
+
 const RECONNECT_DELAY_MS = 5000;
 
 // 서버 재기동(예: 크래시 후 자동 재시작)이나 네트워크 순단으로 연결이 끊겨도
@@ -7,28 +9,29 @@ const RECONNECT_DELAY_MS = 5000;
 export function connectChatSocket(onMessage) {
   let ws = null;
   let manualClose = false;
+  let reconnectTimer = null;
 
   function open() {
-    const token = sessionStorage.getItem("token");
+    // 재연결 대기 중에 로그아웃(화면 언마운트 → close())되면 예약된 재연결을 하지 않는다.
+    if (manualClose) return;
+    const token = getToken();
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     ws = new WebSocket(`${proto}//${location.host}/ws?token=${token}`);
     ws.onmessage = (ev) => onMessage(JSON.parse(ev.data));
     ws.onclose = (ev) => {
       // 토큰 무효(4401)면 재연결해봐야 또 거부당하니 재로그인 화면으로.
       if (ev.code === 4401) {
-        sessionStorage.clear();
-        location.reload();
+        logout();
         return;
       }
       // 강사가 강제 종료: 재연결하면 세션이 없으니 다시 로그인 화면으로.
       if (ev.code === 4403) {
-        sessionStorage.clear();
         alert("강사에 의해 연결이 종료되었습니다.");
-        location.reload();
+        logout();
         return;
       }
       if (manualClose) return;
-      setTimeout(open, RECONNECT_DELAY_MS);
+      reconnectTimer = setTimeout(open, RECONNECT_DELAY_MS);
     };
   }
   open();
@@ -40,6 +43,7 @@ export function connectChatSocket(onMessage) {
     send: (data) => ws?.send(data),
     close: () => {
       manualClose = true;
+      clearTimeout(reconnectTimer);
       ws?.close();
     },
   };
@@ -62,9 +66,8 @@ function send(ws, payload) {
     alert("서버와 연결이 아직 준비되지 않았습니다. 잠시 후 다시 시도해주세요.");
     return;
   }
-  sessionStorage.clear();
   alert("연결이 끊어져 메시지를 보낼 수 없습니다. 다시 로그인해주세요.");
-  location.reload();
+  logout();
 }
 
 export function sendText(ws, text, to = "all") {

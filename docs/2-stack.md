@@ -2,7 +2,8 @@
 
 **버전:** 1.1
 **작성일:** 2026-08-09
-**최종 수정:** 2026-11-17 (연결 단위 세션, 설문 저장, KST 날짜 기준, HTTPS, 입력 방어, 프론트 공통 훅 반영)
+**최종 수정:** 2026-11-18 (인증 정보 전역 store(zustand) 도입)
+이전: 2026-11-17 (연결 단위 세션, 설문 저장, KST 날짜 기준, HTTPS, 입력 방어, 프론트 공통 훅 반영)
 **관련 문서:** [1-prd.md](./1-prd.md)
 
 ---
@@ -48,12 +49,12 @@
 | 항목 | 선택 | 이유 |
 |---|---|---|
 | 구조 | React + Vite | 요건상 React 지정. 화면 수 적어 라우팅 없이 로그인 상태로 컴포넌트만 분기 |
-| 상태 관리 | React 기본 state/context | 화면·데이터 규모상 Redux 등 불필요 |
+| 상태 관리 | 인증 정보만 `zustand` 전역 store(`authStore.js`의 `useAuth`), 나머지는 React 기본 state(페이지·훅 로컬) | 로그인 정보는 컴포넌트 밖(`api.js` 토큰 헤더, `ws.js` 접속 토큰)에서도 읽고, 로그아웃도 그곳들(REST 401, WS 4401·4403, 끊긴 소켓 전송)에서 일어남 — `useAuth.getState().logout()` 하나로 모아 페이지 새로고침 없이 로그인 화면으로 전환. Provider 불필요·약 1KB라 값 4개를 위해 Redux를 들이는 것보다 가벼움. 채팅 메시지·설문·접속자 목록은 한 화면에서만 쓰이고 WS 연결과 수명이 같아 전역에 두지 않음(로그아웃 시 화면 언마운트로 함께 정리) |
 | 화면 구성 | 페이지 2개(`AdminChat`/`StudentChat`) + 공통 훅·컴포넌트. 날짜 목록·메시지 조회·WS 연결/전송은 `useChatRoom`, 상단 바는 `ChatTopBar`, 대화 영역(목록·입력·드롭)은 `ChatPane`, 설문 목록 상태는 `useSurveys` | 두 화면의 차이(사이드바, 화면별 WS 이벤트)만 페이지에 남기고 나머지는 한 곳에서 관리 |
 | 파일 첨부 경로 | 드래그앤드롭·클립보드 붙여넣기·`＋` 버튼 모두 `useFileDrop`의 `deliver` 한 함수로 처리(크기 검사 → base64 → 전송) | 경로마다 크기 검사·오류 표시가 달라지는 것 방지 |
 | 비보안 컨텍스트 대응 | `crypto.randomUUID`, `navigator.clipboard` 등 https/localhost 전용 API에 의존하지 않음(토스트 id는 일련번호, 복사는 `execCommand` 폴백) | 수강생은 `http://<LAN IP>`로 접속 — 이런 API는 아예 존재하지 않아 오류가 남 |
 | 입퇴장 알림 | 강사 화면 상단 토스트(3초 후 사라짐), 대화창에는 추가하지 않음 | 수강생이 많으면 입퇴장 줄이 대화를 밀어냄. 기록은 서버 로그에 그대로 남음 |
-| 실시간 수신 | 브라우저 내장 `WebSocket` API, 얇은 재연결 래퍼(`connectChatSocket`) | 서버 재기동·네트워크 순단으로 연결이 끊기면(토큰 무효 4401 제외) 5초 후 자동 재연결. 별도 라이브러리(reconnecting-websocket 등) 없이 `setTimeout` + 재오픈으로 충분 |
+| 실시간 수신 | 브라우저 내장 `WebSocket` API, 얇은 재연결 래퍼(`connectChatSocket`) | 서버 재기동·네트워크 순단으로 연결이 끊기면(토큰 무효 4401·강제 종료 4403 제외) 5초 후 자동 재연결. 재연결 대기 중 로그아웃되면(`close()`) 예약된 재연결은 취소. 별도 라이브러리(reconnecting-websocket 등) 없이 `setTimeout` + 재오픈으로 충분 |
 | 클립보드 이미지 붙여넣기 | `window`에 `paste` 리스너(문서 전체) + `ClipboardEvent.clipboardData.items` | 좁은 입력창에만 걸면 캡처 후 포커스가 body에 가 있어 안 잡히는 경우가 많아 문서 전체로 확대 |
 | 파일 드래그앤드롭 | 채팅 영역(`main-pane`) 전체에 `onDrop`, `window`에는 `dragover`/`drop` 기본동작만 차단 | 입력창처럼 좁은 영역만 드롭 대상이면 대부분 빗나가 브라우저가 파일을 새 탭으로 열어버림 |
 | 여러 줄 입력 | `<textarea>` + Enter=전송/Shift+Enter=줄바꿈 | 네이티브 요소, 라이브러리 불필요 |
@@ -61,7 +62,7 @@
 | 클립보드 쓰기 | `navigator.clipboard.writeText` + `document.execCommand("copy")` 폴백 | `navigator.clipboard`는 보안 컨텍스트(https/localhost)에서만 존재 — 학생들이 접속하는 LAN IP+HTTP는 비보안 컨텍스트라 폴백 필수 |
 | 이미지 확대보기 | 클릭 시 상태로 제어하는 전체화면 오버레이(CSS `position:fixed`) | 별도 라이트박스 라이브러리 불필요 |
 | 날짜 선택 드롭다운 | `<select>` 네이티브 요소 | 커스텀 드롭다운 라이브러리 불필요 |
-| JWT 저장 | `sessionStorage` | 탭 종료 시 자동 만료(요건상 사용자 정보 비영속과 맥락 일치), 별도 라이브러리 불필요 |
+| JWT 저장 | `sessionStorage`(키 `auth`, zustand `persist` 미들웨어로 저장·복원) | 탭 종료 시 자동 만료(요건상 사용자 정보 비영속과 맥락 일치). 탭 단위라 한 브라우저에서 강사 탭·수강생 탭을 따로 띄울 수 있음 |
 | WS 전송 가드 | `ws.readyState === WebSocket.OPEN` 확인 후 send, 아니면 안내 | 접속 직후 CONNECTING 상태에서 바로 보내면 예외가 이벤트 핸들러 안에서 조용히 죽어 "반응 없음"으로 보임 |
 | 개발 서버 LAN 노출 | `vite.config.js`의 `server.host: true` | 기본은 localhost만 바인딩 — 원격 학생이 개발 서버로 접속하려면 필요 |
 | 개발 프록시 안정성 | 프록시별 `configure(proxy)`에서 `proxy.on("error", ...)` 등록 | 탭 종료/새로고침으로 요청이 중간에 끊기면 `ECONNABORTED`가 uncaught exception으로 던져져 dev 서버 자체가 죽는 문제 방지 |
@@ -110,7 +111,7 @@ data/
 
 - DB(SQLite 포함) — 파일시스템 append-only 로그로 충분, 검색/집계 요구 없음.
 - Redis/메시지 브로커 — 단일 프로세스, 30명 규모라 불필요. 다중 인스턴스 확장 필요해지면 그때 도입.
-- Redux 등 별도 상태관리 라이브러리 — 화면·상태 규모상 React 기본 state로 충분.
+- Redux — 전역 상태가 인증 정보 하나뿐이라 slice·Provider 구성이 과함. 필요한 전역 상태는 zustand로 충분.
 - 리프레시 토큰/토큰 재발급 플로우 — 강의 시간(1~2교시) 내 만료 안 되는 길이로 발급, 필요해지면 추가.
 - 패스워드 해싱/영속 저장(scrypt, `auth.json`), 앱 내 최초 설정 화면 — 환경변수 주입 + 매 요청 직접 비교로 대체되어 불필요.
 - forever/pm2 등 프로세스 매니저 — 크래시 시 재시작만 필요한 단일 인스턴스라 `spawn`+`setTimeout` 몇 줄(`keep-alive.js`)로 충분, 클러스터링/로그로테이션 같은 기능은 이 규모에 불필요.

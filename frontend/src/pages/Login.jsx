@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { api } from "../api.js";
+import { useAuth } from "../authStore.js";
 
-export default function Login({ onLogin }) {
+export default function Login() {
+  const onLogin = useAuth((s) => s.login);
   const [adminPw, setAdminPw] = useState("");
   const [adminErr, setAdminErr] = useState("");
 

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api.js";
+import { useIsAdmin } from "../authStore.js";
 
 function emptyAnswers(survey) {
   return survey.questions.map((q) => (q.type === "choice" ? [] : ""));
@@ -7,7 +8,8 @@ function emptyAnswers(survey) {
 
 // 설문 상세: (수강생) 응답 폼 + 결과, (강사) 결과(응답자 이름 포함) + 마감/삭제.
 // version이 바뀔 때마다(survey_updated 수신) 결과를 재조회해 실시간 반영한다.
-export default function SurveyDetail({ id, version, isAdmin, onBack }) {
+export default function SurveyDetail({ id, version, onBack }) {
+  const isAdmin = useIsAdmin();
   const [data, setData] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [answers, setAnswers] = useState(null);

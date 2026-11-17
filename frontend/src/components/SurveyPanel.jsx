@@ -1,13 +1,15 @@
 import { useState } from "react";
 import SurveyBuilder from "./SurveyBuilder.jsx";
 import SurveyDetail from "./SurveyDetail.jsx";
+import { useIsAdmin } from "../authStore.js";
 
 function formatDate(iso) {
   return new Date(iso).toLocaleString([], { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 // 설문 모달: 목록 → (강사) 새 설문 작성 / 설문 상세(응답·결과).
-export default function SurveyPanel({ surveys, version, isAdmin, onClose }) {
+export default function SurveyPanel({ surveys, version, onClose }) {
+  const isAdmin = useIsAdmin();
   const [view, setView] = useState({ name: "list" }); // { name: "list" | "create" } | { name: "detail", id }
 
   return (
@@ -25,7 +27,7 @@ export default function SurveyPanel({ surveys, version, isAdmin, onClose }) {
             />
           )}
           {view.name === "detail" && (
-            <SurveyDetail id={view.id} version={version} isAdmin={isAdmin} onBack={() => setView({ name: "list" })} />
+            <SurveyDetail id={view.id} version={version} onBack={() => setView({ name: "list" })} />
           )}
           {view.name === "list" && (
             <>

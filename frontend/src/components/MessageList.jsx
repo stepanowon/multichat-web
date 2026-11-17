@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import ContextMenu from "./ContextMenu.jsx";
 import Lightbox from "./Lightbox.jsx";
 import { copyText } from "../clipboard.js";
+import { useIsAdmin, useMyIdentifier } from "../authStore.js";
 
 // ts는 서버가 UTC(ISO 8601)로 저장 — 문자열을 그대로 잘라 쓰면 GMT+0으로 보임.
 // Date로 파싱해 브라우저 로케일 타임존으로 표시한다.
@@ -21,7 +22,9 @@ function triggerDownload(url, fileName) {
   a.remove();
 }
 
-export default function MessageList({ messages, myIdentifier, onDelete, isAdmin = false }) {
+export default function MessageList({ messages, onDelete }) {
+  const isAdmin = useIsAdmin();
+  const myIdentifier = useMyIdentifier();
   const [menu, setMenu] = useState(null); // { x, y, items }
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const bottomRef = useRef(null);
