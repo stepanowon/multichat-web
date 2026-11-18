@@ -2,8 +2,7 @@
 
 **버전:** 1.1
 **작성일:** 2026-08-09
-**최종 수정:** 2026-11-18 (인증 정보 전역 store(zustand) 도입)
-이전: 2026-11-17 (연결 단위 세션, 설문 저장, KST 날짜 기준, HTTPS, 입력 방어, 프론트 공통 훅 반영)
+**최종 수정:** 2026-11-18 (인증 정보 전역 store(zustand) 도입 — 이전 2026-11-17: 연결 단위 세션, 설문 저장, KST 날짜 기준, HTTPS, 입력 방어, 프론트 공통 훅 반영)
 **관련 문서:** [1-prd.md](./1-prd.md)
 
 ---
@@ -50,7 +49,7 @@
 |---|---|---|
 | 구조 | React + Vite | 요건상 React 지정. 화면 수 적어 라우팅 없이 로그인 상태로 컴포넌트만 분기 |
 | 상태 관리 | 인증 정보만 `zustand` 전역 store(`authStore.js`의 `useAuth`), 나머지는 React 기본 state(페이지·훅 로컬) | 로그인 정보는 컴포넌트 밖(`api.js` 토큰 헤더, `ws.js` 접속 토큰)에서도 읽고, 로그아웃도 그곳들(REST 401, WS 4401·4403, 끊긴 소켓 전송)에서 일어남 — `useAuth.getState().logout()` 하나로 모아 페이지 새로고침 없이 로그인 화면으로 전환. Provider 불필요·약 1KB라 값 4개를 위해 Redux를 들이는 것보다 가벼움. 채팅 메시지·설문·접속자 목록은 한 화면에서만 쓰이고 WS 연결과 수명이 같아 전역에 두지 않음(로그아웃 시 화면 언마운트로 함께 정리) |
-| 화면 구성 | 페이지 2개(`AdminChat`/`StudentChat`) + 공통 훅·컴포넌트. 날짜 목록·메시지 조회·WS 연결/전송은 `useChatRoom`, 상단 바는 `ChatTopBar`, 대화 영역(목록·입력·드롭)은 `ChatPane`, 설문 목록 상태는 `useSurveys` | 두 화면의 차이(사이드바, 화면별 WS 이벤트)만 페이지에 남기고 나머지는 한 곳에서 관리 |
+| 화면 구성 | `App`이 `useAuth`의 로그인 정보(role)로 로그인/강사/수강생 화면을 고르고, 페이지 2개(`AdminChat`/`StudentChat`) + 공통 훅·컴포넌트로 구성. 내 식별자·강사 여부·로그아웃은 props로 내려보내지 않고 필요한 컴포넌트(`MessageList`, `SurveyPanel`, `SurveyDetail`, `ChatTopBar`)가 store에서 직접 읽음. 날짜 목록·메시지 조회·WS 연결/전송은 `useChatRoom`, 상단 바는 `ChatTopBar`, 대화 영역(목록·입력·드롭)은 `ChatPane`, 설문 목록 상태는 `useSurveys` | 두 화면의 차이(사이드바, 화면별 WS 이벤트)만 페이지에 남기고 나머지는 한 곳에서 관리 |
 | 파일 첨부 경로 | 드래그앤드롭·클립보드 붙여넣기·`＋` 버튼 모두 `useFileDrop`의 `deliver` 한 함수로 처리(크기 검사 → base64 → 전송) | 경로마다 크기 검사·오류 표시가 달라지는 것 방지 |
 | 비보안 컨텍스트 대응 | `crypto.randomUUID`, `navigator.clipboard` 등 https/localhost 전용 API에 의존하지 않음(토스트 id는 일련번호, 복사는 `execCommand` 폴백) | 수강생은 `http://<LAN IP>`로 접속 — 이런 API는 아예 존재하지 않아 오류가 남 |
 | 입퇴장 알림 | 강사 화면 상단 토스트(3초 후 사라짐), 대화창에는 추가하지 않음 | 수강생이 많으면 입퇴장 줄이 대화를 밀어냄. 기록은 서버 로그에 그대로 남음 |
@@ -100,10 +99,11 @@ data/
 
 ## 7. 인증/권한
 
-- 로그인 성공 시 서버가 JWT 발급(payload: `role`, `nickname`, `identifier`, `sessionVersion`, 만료 8시간 — 하루 강의 동안 재로그인 불필요). 쿠키 없이 클라이언트가 보관, REST는 `Authorization: Bearer`, WebSocket은 연결 URL 쿼리로 전달. 별도 인증 라이브러리(Passport 등) 불필요 — `jsonwebtoken`으로 서명/검증만 하면 됨.
+- 로그인 성공 시 서버가 JWT 발급(payload: `role`, `nickname`, `identifier`, `sessionVersion`, 만료 8시간 — 하루 강의 동안 재로그인 불필요). 쿠키 없이 클라이언트가 보관(zustand `useAuth` store → sessionStorage `auth` 키), REST는 `Authorization: Bearer`, WebSocket은 연결 URL 쿼리로 전달. 별도 인증 라이브러리(Passport 등) 불필요 — `jsonwebtoken`으로 서명/검증만 하면 됨.
 - 서명 시크릿은 서버 기동 시 1회 생성해 메모리에만 보관(재기동 시 기존 토큰 전부 무효화 — 사용자 비영속 요구와 맥락 일치).
 - `<a href>` 다운로드 링크(대화·설문 내보내기, 공유 파일)는 헤더를 붙일 수 없어 `?token=` 쿼리로도 인증.
 - 강제 종료: 식별자별 `sessionVersion`을 메모리에 두고, 강사가 내보내면 값을 올려 그 사람의 기존 토큰을 즉시 무효화.
+- 클라이언트 로그아웃: 나가기 버튼, REST 401, WS close 4401·4403, 끊긴 소켓으로 전송 시도 — 모두 `authStore`의 `logout()` 한 곳으로 처리. 로그인 정보를 비우면 `App`이 로그인 화면으로 전환하고(페이지 새로고침 없음), 채팅 화면이 언마운트되며 WS 연결과 화면 상태도 함께 정리된다.
 - 고유식별자 충돌 검사: 로그인 시 같은 식별자로 접속 중인 수강생이 있으면 409로 거부 → 클라이언트 재입력 유도. WS 접속 시점에도 한 번 더 확인(close 4409).
 - 패스워드는 어떤 형태로도 파일/DB에 저장하지 않음. 환경변수 값과 입력값을 `crypto.timingSafeEqual`로 비교만 하고 즉시 폐기.
 
